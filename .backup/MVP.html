@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0038A8">
+    <title>Calculadora PYG</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --primary-blue: #0038A8;
+            --primary-red: #CE1126;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --border: #e5e7eb;
+            --text-primary: #1a1a1a;
+            --text-secondary: #6b7280;
+            --success: #059669;
+            --warning: #f59e0b;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+            --safe-left: env(safe-area-inset-left);
+            --safe-right: env(safe-area-inset-right);
+        }
+
+        html {
+            font-size: clamp(15px, 4.2vw, 17px);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', system-ui, sans-serif;
+            background: var(--primary-blue);
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: max(var(--safe-top), 10px) max(var(--safe-left), 12px) max(var(--safe-bottom), 24px) max(var(--safe-right), 12px);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: min(480px, 100%);
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: clamp(10px, 3vw, 14px);
+            padding: 0 8px;
+        }
+
+        .header h1 {
+            font-size: clamp(1.25rem, 5.5vw, 1.625rem);
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            line-height: 1.2;
+        }
+
+        .calculator-body {
+            background: var(--bg-card);
+            border-radius: clamp(16px, 4vw, 20px);
+            padding: clamp(14px, 3.5vw, 18px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+        }
+
+        .flag-accent {
+            height: 3px;
+            background: linear-gradient(to right, var(--primary-red) 33%, white 33% 66%, var(--primary-blue) 66%);
+            border-radius: 2px;
+            margin-bottom: 12px;
+        }
+
+        .section {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.625rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .currency-symbol {
+            position: absolute;
+            left: clamp(10px, 2.5vw, 12px);
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: clamp(1.25rem, 5vw, 1.5rem);
+            font-weight: 700;
+            color: var(--primary-blue);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        #pyg-display {
+            width: 100%;
+            font-size: clamp(1.5rem, 6vw, 1.75rem);
+            font-weight: 700;
+            padding: 12px 12px 12px clamp(36px, 9vw, 42px);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            min-height: 44px;
+        }
+
+        #pyg-display:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(0,56,168,0.08);
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 12px 0;
+            opacity: 0.6;
+        }
+
+        .section-title {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            color: var(--primary-blue);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .widget-compact {
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 8px;
+            background: white;
+        }
+
+        .widget-header {
+            background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .widget-name {
+            font-size: 0.625rem;
+            font-weight: 700;
+            color: #374151;
+        }
+
+        .widget-toggle {
+            font-size: 0.625rem;
+            color: var(--primary-blue);
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 4px 8px;
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+        }
+
+        .widget-frame {
+            width: 100%;
+            height: 0;
+            border: none;
+            display: block;
+            transition: height 0.3s ease;
+            overflow: hidden;
+        }
+
+        .widget-frame.expanded {
+            height: clamp(140px, 35vw, 190px);
+        }
+
+        .rate-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .rate-input-compact {
+            position: relative;
+        }
+
+        .rate-input-compact label {
+            font-size: 0.5625rem;
+            margin-bottom: 4px;
+        }
+
+        .rate-input-compact .currency-symbol {
+            font-size: 0.875rem;
+            left: 8px;
+        }
+
+        .rate-input {
+            width: 100%;
+            font-size: 0.875rem;
+            font-weight: 600;
+            padding: 8px 8px 8px 26px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            min-height: 44px;
+            transition: all 0.2s ease;
+        }
+
+        .rate-input:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(0,56,168,0.08);
+        }
+
+        .custom-rate .currency-symbol {
+            font-size: 1rem;
+            left: 10px;
+        }
+
+        #rate-custom {
+            width: 100%;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            padding: 10px 10px 10px 32px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            min-height: 44px;
+        }
+
+        #rate-custom:focus {
+            outline: none;
+            border-color: var(--primary-red);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(206,17,38,0.08);
+        }
+
+        .ars-section {
+            background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+            border: 2px solid #3b82f6;
+            border-radius: 14px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .ars-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .ars-title {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            color: var(--primary-blue);
+            text-transform: uppercase;
+        }
+
+        .ars-status {
+            font-size: 0.5625rem;
+            background: #10b981;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .ars-status.loading {
+            background: #f59e0b;
+        }
+
+        .ars-rates {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .ars-rate-item {
+            background: white;
+            border-radius: 10px;
+            padding: 8px 10px;
+            border: 1px solid #dbeafe;
+        }
+
+        .ars-rate-name {
+            font-size: 0.5625rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+        }
+
+        .ars-rate-value {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: var(--primary-blue);
+        }
+
+        .ars-optional {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #dbeafe;
+        }
+
+        .ars-optional-toggle {
+            font-size: 0.625rem;
+            color: #3b82f6;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: underline;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+            min-height: 44px;
+        }
+
+        .ars-optional-rates {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .ars-optional-rates.visible {
+            display: grid;
+        }
+
+        .custom-ars-rate {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #dbeafe;
+        }
+
+        .custom-ars-rate label {
+            font-size: 0.5625rem;
+            margin-bottom: 6px;
+        }
+
+        .custom-ars-rate .currency-symbol {
+            font-size: 0.875rem;
+            left: 8px;
+        }
+
+        .custom-ars-rate input {
+            font-size: 0.875rem;
+            padding: 8px 8px 8px 26px;
+            min-height: 44px;
+        }
+
+        .card-fee-section {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #dbeafe;
+        }
+
+        .card-fee-section label {
+            font-size: 0.5625rem;
+            margin-bottom: 8px;
+            color: var(--warning);
+        }
+
+        .fee-options {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .fee-option {
+            flex: 1;
+            min-width: calc(33.33% - 4px);
+            padding: 8px 6px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fee-option:hover {
+            border-color: var(--warning);
+        }
+
+        .fee-option.active {
+            border-color: var(--warning);
+            background: #fffbeb;
+            font-weight: 700;
+        }
+
+        .fee-option-label {
+            font-size: 0.6875rem;
+            color: var(--text-primary);
+        }
+
+        .fee-custom-input {
+            display: none;
+            margin-top: 8px;
+        }
+
+        .fee-custom-input.visible {
+            display: block;
+        }
+
+        .fee-custom-input input {
+            width: 100%;
+            font-size: 0.875rem;
+            font-weight: 600;
+            padding: 8px 10px;
+            border: 1.5px solid var(--warning);
+            border-radius: 10px;
+            background: #fffbeb;
+            color: var(--text-primary);
+            min-height: 44px;
+        }
+
+        .fee-custom-input input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(245,158,11,0.15);
+        }
+
+        .results-compact {
+            display: grid;
+            gap: 10px;
+        }
+
+        .result-mini {
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .result-mini.highlight {
+            border-color: var(--primary-red);
+            background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .result-source-mini {
+            font-size: 0.625rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .result-usd {
+            font-size: clamp(1.125rem, 5vw, 1.375rem);
+            font-weight: 800;
+            color: var(--primary-blue);
+        }
+
+        .result-ars-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+
+        .result-ars-item {
+            text-align: left;
+        }
+
+        .result-ars-label {
+            font-size: 0.5625rem;
+            color: #9ca3af;
+            font-weight: 600;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+
+        .result-ars-value {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .result-card-fee {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dashed #fbbf24;
+            background: linear-gradient(135deg, #fffbeb 0%, transparent 100%);
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        .result-card-fee-label {
+            font-size: 0.5625rem;
+            color: var(--warning);
+            font-weight: 700;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+        }
+
+        .result-card-fee-value {
+            font-size: 0.875rem;
+            font-weight: 800;
+            color: var(--warning);
+        }
+
+        .empty-state-mini {
+            text-align: center;
+            padding: 20px 12px;
+            color: #9ca3af;
+            font-size: 0.75rem;
+            line-height: 1.5;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            font-size: 0.625rem;
+            margin-top: 12px;
+            opacity: 0.85;
+            padding: 0 8px;
+            line-height: 1.4;
+        }
+
+        @media (min-width: 440px) {
+            .widget-frame.expanded {
+                height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💱 Calculadora PYG</h1>
+        </div>
+
+        <div class="calculator-body">
+            <div class="flag-accent"></div>
+
+            <div class="section">
+                <label for="pyg-display">Monto en Guaraníes</label>
+                <div class="input-wrapper">
+                    <span class="currency-symbol">₲</span>
+                    <input 
+                        type="text" 
+                        id="pyg-display" 
+                        placeholder="0"
+                        inputmode="numeric"
+                    >
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="section">
+                <div class="section-title">Tasas PYG → USD</div>
+
+                <div class="widget-compact">
+                    <div class="widget-header">
+                        <span class="widget-name">🏦 Cambios Chaco</span>
+                        <span class="widget-toggle" onclick="toggleWidget('chaco')">Ver tasas</span>
+                    </div>
+                    <iframe 
+                        id="widget-chaco"
+                        class="widget-frame" 
+                        src="https://www.cambioschaco.com.py/widgets/cotizacion/?lang=es"
+                        title="Cambios Chaco"
+                    ></iframe>
+                </div>
+
+                <div class="widget-compact">
+                    <div class="widget-header">
+                        <span class="widget-name">💵 Maxicambios</span>
+                        <span class="widget-toggle" onclick="toggleWidget('maxi')">Ver tasas</span>
+                    </div>
+                    <iframe 
+                        id="widget-maxi"
+                        class="widget-frame" 
+                        src="https://www.maxicambios.com.py/share"
+                        title="Maxicambios"
+                    ></iframe>
+                </div>
+
+                <div class="rate-inputs">
+                    <div class="rate-input-compact">
+                        <label>Cambios Chaco</label>
+                        <div class="input-wrapper">
+                            <span class="currency-symbol">₲</span>
+                            <input 
+                                type="text" 
+                                id="rate-chaco"
+                                class="rate-input"
+                                placeholder="6.200"
+                                inputmode="numeric"
+                            >
+                        </div>
+                    </div>
+                    <div class="rate-input-compact">
+                        <label>Maxicambios</label>
+                        <div class="input-wrapper">
+                            <span class="currency-symbol">₲</span>
+                            <input 
+                                type="text" 
+                                id="rate-maxi"
+                                class="rate-input"
+                                placeholder="6.200"
+                                inputmode="numeric"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <div class="custom-rate">
+                    <label for="rate-custom">Tasa Personalizada</label>
+                    <div class="input-wrapper">
+                        <span class="currency-symbol">₲</span>
+                        <input 
+                            type="text" 
+                            id="rate-custom" 
+                            placeholder="6.200"
+                            inputmode="numeric"
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="ars-section">
+                <div class="ars-header">
+                    <span class="ars-title">Tasas USD → ARS</span>
+                    <span class="ars-status" id="ars-status">Cargando...</span>
+                </div>
+                
+                <div class="ars-rates">
+                    <div class="ars-rate-item">
+                        <div class="ars-rate-name">Oficial</div>
+                        <div class="ars-rate-value" id="ars-oficial">-</div>
+                    </div>
+                    <div class="ars-rate-item">
+                        <div class="ars-rate-name">Tarjeta</div>
+                        <div class="ars-rate-value" id="ars-tarjeta">-</div>
+                    </div>
+                </div>
+
+                <div class="ars-optional">
+                    <a class="ars-optional-toggle" onclick="toggleOptionalARS()">
+                        <span id="optional-toggle-text">Mostrar MEP y Cripto ▼</span>
+                    </a>
+                    <div class="ars-optional-rates" id="ars-optional-rates">
+                        <div class="ars-rate-item">
+                            <div class="ars-rate-name">MEP</div>
+                            <div class="ars-rate-value" id="ars-mep">-</div>
+                        </div>
+                        <div class="ars-rate-item">
+                            <div class="ars-rate-name">Cripto</div>
+                            <div class="ars-rate-value" id="ars-cripto">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="custom-ars-rate">
+                    <label for="rate-ars-custom">Tu billetera (DollarApp, etc)</label>
+                    <div class="input-wrapper">
+                        <span class="currency-symbol">$</span>
+                        <input 
+                            type="text" 
+                            id="rate-ars-custom" 
+                            class="rate-input"
+                            placeholder="1.471,41"
+                            inputmode="decimal"
+                        >
+                    </div>
+                </div>
+
+                <div class="card-fee-section">
+                    <label>Recargo tarjeta billetera</label>
+                    <div class="fee-options">
+                        <div class="fee-option active" data-fee="0" onclick="selectFee(0)">
+                            <span class="fee-option-label">Sin recargo</span>
+                        </div>
+                        <div class="fee-option" data-fee="2" onclick="selectFee(2)">
+                            <span class="fee-option-label">2%</span>
+                        </div>
+                        <div class="fee-option" data-fee="3" onclick="selectFee(3)">
+                            <span class="fee-option-label">3%</span>
+                        </div>
+                        <div class="fee-option" data-fee="custom" onclick="selectFee('custom')">
+                            <span class="fee-option-label">Custom</span>
+                        </div>
+                    </div>
+                    <div class="fee-custom-input" id="fee-custom-input">
+                        <input 
+                            type="number" 
+                            id="fee-custom-value"
+                            placeholder="Ingresá %"
+                            inputmode="decimal"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="section-title">Conversiones</div>
+            <div id="results" class="results-compact"></div>
+        </div>
+
+        <div class="footer">
+            Tasas ARS en vivo desde DolarApi.com
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'pyg_calc_v7';
+        
+        const arsRates = {
+            oficial: null,
+            tarjeta: null,
+            mep: null,
+            cripto: null,
+            custom: null
+        };
+
+        let selectedFee = 0;
+
+        const elements = {
+            pygDisplay: document.getElementById('pyg-display'),
+            rateChaco: document.getElementById('rate-chaco'),
+            rateMaxi: document.getElementById('rate-maxi'),
+            rateCustom: document.getElementById('rate-custom'),
+            rateArsCustom: document.getElementById('rate-ars-custom'),
+            results: document.getElementById('results'),
+            widgetChaco: document.getElementById('widget-chaco'),
+            widgetMaxi: document.getElementById('widget-maxi'),
+            arsStatus: document.getElementById('ars-status'),
+            arsOficial: document.getElementById('ars-oficial'),
+            arsTarjeta: document.getElementById('ars-tarjeta'),
+            arsMep: document.getElementById('ars-mep'),
+            arsCripto: document.getElementById('ars-cripto'),
+            arsOptionalRates: document.getElementById('ars-optional-rates'),
+            optionalToggleText: document.getElementById('optional-toggle-text'),
+            feeCustomInput: document.getElementById('fee-custom-input'),
+            feeCustomValue: document.getElementById('fee-custom-value')
+        };
+
+        function toggleWidget(source) {
+            const widget = source === 'chaco' ? elements.widgetChaco : elements.widgetMaxi;
+            widget.classList.toggle('expanded');
+        }
+
+        function toggleOptionalARS() {
+            const isVisible = elements.arsOptionalRates.classList.toggle('visible');
+            elements.optionalToggleText.textContent = isVisible 
+                ? 'Ocultar MEP y Cripto ▲' 
+                : 'Mostrar MEP y Cripto ▼';
+        }
+
+        function selectFee(fee) {
+            document.querySelectorAll('.fee-option').forEach(opt => {
+                opt.classList.remove('active');
+            });
+
+            if (fee === 'custom') {
+                document.querySelector('[data-fee="custom"]').classList.add('active');
+                elements.feeCustomInput.classList.add('visible');
+                selectedFee = parseFloat(elements.feeCustomValue.value) || 0;
+            } else {
+                document.querySelector(`[data-fee="${fee}"]`).classList.add('active');
+                elements.feeCustomInput.classList.remove('visible');
+                selectedFee = fee;
+            }
+
+            saveData();
+            calculate();
+        }
+
+        elements.feeCustomValue.addEventListener('input', () => {
+            selectedFee = parseFloat(elements.feeCustomValue.value) || 0;
+            calculate();
+        });
+
+        function formatNumber(num) {
+            if (!num) return '';
+            const cleaned = num.toString().replace(/\D/g, '');
+            if (!cleaned) return '';
+            return parseInt(cleaned).toLocaleString('es-PY');
+        }
+
+        function formatDecimal(value) {
+            if (!value) return '';
+            let str = value.toString().replace(/[^\d,\.]/g, '');
+            str = str.replace(/\./g, '');
+            const parts = str.split(',');
+            if (parts.length > 2) {
+                str = parts[0] + ',' + parts.slice(1).join('');
+            }
+            return str;
+        }
+
+        function parseNumber(str) {
+            if (!str) return 0;
+            return parseInt(str.replace(/\D/g, '')) || 0;
+        }
+
+        function parseDecimal(str) {
+            if (!str) return 0;
+            return parseFloat(str.replace(/\./g, '').replace(',', '.')) || 0;
+        }
+
+        function setupFormattedInput(input, isDecimal = false) {
+            let isComposing = false;
+
+            input.addEventListener('compositionstart', () => {
+                isComposing = true;
+            });
+
+            input.addEventListener('compositionend', () => {
+                isComposing = false;
+            });
+
+            input.addEventListener('input', (e) => {
+                if (isComposing) return;
+
+                const cursorPos = e.target.selectionStart;
+                const oldValue = e.target.value;
+                const oldLength = oldValue.length;
+                
+                let newValue;
+                if (isDecimal) {
+                    newValue = formatDecimal(oldValue);
+                } else {
+                    const rawValue = parseNumber(oldValue);
+                    newValue = formatNumber(rawValue);
+                }
+                
+                if (newValue !== oldValue) {
+                    e.target.value = newValue;
+                    const newLength = newValue.length;
+                    const lengthDiff = newLength - oldLength;
+                    const newCursorPos = Math.max(0, Math.min(newLength, cursorPos + lengthDiff));
+                    e.target.setSelectionRange(newCursorPos, newCursorPos);
+                }
+                
+                calculate();
+            });
+
+            if (isDecimal) {
+                input.addEventListener('blur', (e) => {
+                    const value = parseDecimal(e.target.value);
+                    if (value > 0) {
+                        e.target.value = value.toLocaleString('es-AR', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                        calculate();
+                    }
+                });
+            }
+        }
+
+        setupFormattedInput(elements.pygDisplay);
+        setupFormattedInput(elements.rateChaco);
+        setupFormattedInput(elements.rateMaxi);
+        setupFormattedInput(elements.rateCustom);
+        setupFormattedInput(elements.rateArsCustom, true);
+
+        async function fetchARSRates() {
+            elements.arsStatus.textContent = 'Cargando...';
+            elements.arsStatus.classList.add('loading');
+
+            try {
+                const response = await fetch('https://dolarapi.com/v1/dolares');
+                const data = await response.json();
+
+                const oficial = data.find(d => d.casa === 'oficial');
+                const tarjeta = data.find(d => d.casa === 'tarjeta');
+                const bolsa = data.find(d => d.casa === 'bolsa');
+                const cripto = data.find(d => d.casa === 'cripto');
+
+                if (oficial) {
+                    arsRates.oficial = oficial.venta;
+                    elements.arsOficial.textContent = `$${arsRates.oficial.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+                }
+
+                if (tarjeta) {
+                    arsRates.tarjeta = tarjeta.venta;
+                    elements.arsTarjeta.textContent = `$${arsRates.tarjeta.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+                }
+
+                if (bolsa) {
+                    arsRates.mep = bolsa.venta;
+                    elements.arsMep.textContent = `$${arsRates.mep.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+                }
+
+                if (cripto) {
+                    arsRates.cripto = cripto.venta;
+                    elements.arsCripto.textContent = `$${arsRates.cripto.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+                }
+
+                elements.arsStatus.textContent = 'LIVE';
+                elements.arsStatus.classList.remove('loading');
+
+                localStorage.setItem(STORAGE_KEY + '_ars', JSON.stringify({
+                    rates: arsRates,
+                    timestamp: Date.now()
+                }));
+
+                calculate();
+            } catch (error) {
+                console.error('Error fetching ARS rates:', error);
+                elements.arsStatus.textContent = 'Error';
+                elements.arsStatus.classList.remove('loading');
+
+                const cached = localStorage.getItem(STORAGE_KEY + '_ars');
+                if (cached) {
+                    const data = JSON.parse(cached);
+                    Object.assign(arsRates, data.rates);
+
+                    if (arsRates.oficial) elements.arsOficial.textContent = `$${arsRates.oficial.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+                    if (arsRates.tarjeta) elements.arsTarjeta.textContent = `$${arsRates.tarjeta.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+                    if (arsRates.mep) elements.arsMep.textContent = `$${arsRates.mep.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+                    if (arsRates.cripto) elements.arsCripto.textContent = `$${arsRates.cripto.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+                }
+            }
+        }
+
+        function loadSavedData() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    if (data.amount) elements.pygDisplay.value = formatNumber(data.amount);
+                    if (data.rateChaco) elements.rateChaco.value = formatNumber(data.rateChaco);
+                    if (data.rateMaxi) elements.rateMaxi.value = formatNumber(data.rateMaxi);
+                    if (data.customRate) elements.rateCustom.value = formatNumber(data.customRate);
+                    if (data.arsCustomRate) elements.rateArsCustom.value = data.arsCustomRate;
+                    if (data.selectedFee !== undefined) {
+                        if (data.selectedFee === 'custom') {
+                            selectFee('custom');
+                            if (data.customFeeValue) elements.feeCustomValue.value = data.customFeeValue;
+                        } else {
+                            selectFee(data.selectedFee);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error loading:', e);
+                }
+            }
+        }
+
+        function saveData() {
+            const data = {
+                amount: parseNumber(elements.pygDisplay.value),
+                rateChaco: parseNumber(elements.rateChaco.value),
+                rateMaxi: parseNumber(elements.rateMaxi.value),
+                customRate: parseNumber(elements.rateCustom.value),
+                arsCustomRate: elements.rateArsCustom.value,
+                selectedFee: document.querySelector('.fee-option.active')?.dataset.fee || 0,
+                customFeeValue: elements.feeCustomValue.value,
+                lastSave: new Date().toISOString()
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function calculate() {
+            const pygAmount = parseNumber(elements.pygDisplay.value);
+
+            if (!pygAmount || pygAmount <= 0) {
+                elements.results.innerHTML = `
+                    <div class="empty-state-mini">
+                        Ingresá un monto en guaraníes y las tasas PYG para calcular
+                    </div>
+                `;
+                return;
+            }
+
+            const conversions = [];
+            arsRates.custom = parseDecimal(elements.rateArsCustom.value);
+
+            const chacoRate = parseNumber(elements.rateChaco.value);
+            if (chacoRate && chacoRate > 0) {
+                const usd = pygAmount / chacoRate;
+                conversions.push({
+                    source: 'Cambios Chaco',
+                    usd: usd,
+                    arsRates: {
+                        tarjeta: arsRates.tarjeta ? usd * arsRates.tarjeta : null,
+                        custom: arsRates.custom ? usd * arsRates.custom : null,
+                        customWithFee: arsRates.custom && selectedFee > 0 ? usd * arsRates.custom * (1 + selectedFee / 100) : null
+                    },
+                    highlight: false
+                });
+            }
+
+            const maxiRate = parseNumber(elements.rateMaxi.value);
+            if (maxiRate && maxiRate > 0) {
+                const usd = pygAmount / maxiRate;
+                conversions.push({
+                    source: 'Maxicambios',
+                    usd: usd,
+                    arsRates: {
+                        tarjeta: arsRates.tarjeta ? usd * arsRates.tarjeta : null,
+                        custom: arsRates.custom ? usd * arsRates.custom : null,
+                        customWithFee: arsRates.custom && selectedFee > 0 ? usd * arsRates.custom * (1 + selectedFee / 100) : null
+                    },
+                    highlight: false
+                });
+            }
+
+            const customRate = parseNumber(elements.rateCustom.value);
+            if (customRate && customRate > 0) {
+                const usd = pygAmount / customRate;
+                conversions.push({
+                    source: 'Personalizada',
+                    usd: usd,
+                    arsRates: {
+                        tarjeta: arsRates.tarjeta ? usd * arsRates.tarjeta : null,
+                        custom: arsRates.custom ? usd * arsRates.custom : null,
+                        customWithFee: arsRates.custom && selectedFee > 0 ? usd * arsRates.custom * (1 + selectedFee / 100) : null
+                    },
+                    highlight: true
+                });
+            }
+
+            if (conversions.length === 0) {
+                elements.results.innerHTML = `
+                    <div class="empty-state-mini">
+                        Ingresá al menos una tasa PYG para calcular
+                    </div>
+                `;
+                return;
+            }
+
+            saveData();
+
+            const formatCurrency = (num) => {
+                if (!num) return '-';
+                const parts = num.toFixed(2).split('.');
+                const intPart = parseInt(parts[0]).toLocaleString('es-PY');
+                return intPart + ',' + parts[1];
+            };
+
+            elements.results.innerHTML = conversions.map(conv => {
+                let arsGrid = '';
+                
+                if (conv.arsRates.tarjeta || conv.arsRates.custom) {
+                    arsGrid = `
+                        <div class="result-ars-grid">
+                            ${conv.arsRates.tarjeta ? `
+                                <div class="result-ars-item">
+                                    <div class="result-ars-label">Tarjeta</div>
+                                    <div class="result-ars-value">$${formatCurrency(conv.arsRates.tarjeta)}</div>
+                                </div>
+                            ` : ''}
+                            ${conv.arsRates.custom ? `
+                                <div class="result-ars-item">
+                                    <div class="result-ars-label">Tu billetera</div>
+                                    <div class="result-ars-value">$${formatCurrency(conv.arsRates.custom)}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+
+                let cardFeeSection = '';
+                if (conv.arsRates.customWithFee && selectedFee > 0) {
+                    cardFeeSection = `
+                        <div class="result-card-fee">
+                            <div class="result-card-fee-label">💳 Tarjeta billetera (+${selectedFee}%)</div>
+                            <div class="result-card-fee-value">$${formatCurrency(conv.arsRates.customWithFee)}</div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="result-mini ${conv.highlight ? 'highlight' : ''}">
+                        <div class="result-header">
+                            <span class="result-source-mini">${conv.source}</span>
+                            <span class="result-usd">$${formatCurrency(conv.usd)}</span>
+                        </div>
+                        ${arsGrid}
+                        ${cardFeeSection}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        loadSavedData();
+        fetchARSRates();
+        calculate();
+        setInterval(fetchARSRates, 5 * 60 * 1000);
+    </script>
+</body>
+</html>

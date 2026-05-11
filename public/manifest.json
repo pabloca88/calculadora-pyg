@@ -1,0 +1,55 @@
+{
+  "name": "Calculadora PYG - Conversión de Monedas",
+  "short_name": "Calculadora PYG",
+  "description": "Calculadora PWA para conversión PYG → USD → ARS con tasas en vivo y modo offline",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0038A8",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-1.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Convertir PYG",
+      "short_name": "Convertir",
+      "description": "Abre la calculadora",
+      "url": "/?mode=calculator",
+      "icons": [
+        {
+          "src": "/icon-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "categories": ["finance", "utilities"],
+  "screenshots": []
+}
