@@ -18,6 +18,7 @@ export const saveCalculatorData = (data: Partial<SavedCalculatorData>): void => 
       customFeeValue: data.customFeeValue ?? '',
       selectedWallet: data.selectedWallet ?? 'DollarApp',
       customWalletName: data.customWalletName ?? '',
+      selectedExchange: data.selectedExchange ?? 'chaco',
       lastSave: new Date().toISOString(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(fullData));

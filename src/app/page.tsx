@@ -13,6 +13,8 @@ export default function Page() {
     setRateChaco,
     rateMaxi,
     setRateMaxi,
+    rateCustom,
+    setRateCustom,
     rateArsCustom,
     setRateArsCustom,
     selectedFee,
@@ -34,6 +36,8 @@ export default function Page() {
     setSelectedWallet,
     customWalletName,
     setCustomWalletName,
+    selectedExchange,
+    setSelectedExchange,
   } = useCalculator();
 
   const walletDisplayName =
@@ -50,52 +54,34 @@ export default function Page() {
   const pygAmountRaw = parseNumber(pygAmount);
   const hasTouristDiscount = pygAmountRaw > 0;
 
-  // Derive payment method cards — exclude Personalizada
-  const sourceResults = results.filter((r) => r.source !== 'Personalizada');
-  const tarjetaRows = sourceResults.filter((r) => r.arsRates.tarjeta !== null);
-  const billeteraRows = sourceResults.filter((r) => r.arsRates.custom !== null);
-  const efectivoRows = sourceResults;
-
   const feeIsActive = typeof selectedFee === 'number' && selectedFee > 0;
 
-  // "Más barato" comparison
-  const tarjetaBest =
-    tarjetaRows.length > 0
-      ? Math.min(...tarjetaRows.map((r) => r.arsRates.tarjeta!))
-      : Infinity;
+  // Pick the conversion for the selected exchange
+  const selectedConv = showEmptyState ? null :
+    results.find(r =>
+      selectedExchange === 'chaco' ? r.source === 'Cambios Chaco' :
+      selectedExchange === 'maxi' ? r.source === 'Maxicambios' :
+      r.source === 'Personalizada'
+    ) ?? null;
 
-  const billeteraBest =
-    billeteraRows.length > 0
-      ? Math.min(
-          ...billeteraRows.map((r) => {
-            const fee = r.arsRates.customWithFee;
-            return feeIsActive && fee != null ? fee : r.arsRates.custom!;
-          })
-        )
-      : Infinity;
+  const selectedExchangeName =
+    selectedExchange === 'chaco' ? 'Cambios Chaco' :
+    selectedExchange === 'maxi' ? 'Maxicambios' :
+    'Personalizada';
 
-  const efectivoBest =
-    arsRates.oficial != null && efectivoRows.length > 0
-      ? Math.min(...efectivoRows.map((r) => r.usd * arsRates.oficial!))
-      : Infinity;
+  // "Más barato" — compare everything in ARS
+  const efectivoInARS = (selectedConv && arsRates.oficial)
+    ? selectedConv.usd * arsRates.oficial
+    : Infinity;
+  const billeteraInARS = selectedConv
+    ? (feeIsActive && selectedConv.arsRates.customWithFee != null
+        ? selectedConv.arsRates.customWithFee
+        : selectedConv.arsRates.custom ?? Infinity)
+    : Infinity;
 
-  const methodsWithData = [
-    tarjetaRows.length > 0,
-    billeteraRows.length > 0,
-    efectivoRows.length > 0 && arsRates.oficial != null,
-  ].filter(Boolean).length;
-
-  const minVal = Math.min(tarjetaBest, billeteraBest, efectivoBest);
-  const cheapest =
-    methodsWithData >= 2 && minVal < Infinity
-      ? minVal === tarjetaBest
-        ? 'tarjeta'
-        : minVal === billeteraBest
-        ? 'billetera'
-        : 'efectivo'
-      : null;
-
-  const multi = (rows: unknown[]) => rows.length > 1;
+  const bothAvailable = efectivoInARS < Infinity && billeteraInARS < Infinity;
+  const isCheapestBilletera = bothAvailable && billeteraInARS < efectivoInARS;
+  const isCheapestEfectivoTarjeta = bothAvailable && efectivoInARS <= billeteraInARS;
 
   return (
     <div className="container">
@@ -276,250 +262,292 @@ export default function Page() {
               <div className="input-helper">💡 Formato: 1.471,41 (punto miles, coma decimales)</div>
             )}
           </div>
+        </div>
 
-          <div className="card-fee-section">
-            <label>Recargo tarjeta billetera</label>
-            <div className="fee-options">
-              <button
-                type="button"
-                className={`fee-option ${selectedFee === 0 ? 'active' : ''}`}
-                onClick={() => handleFeeSelect(0)}
-              >
-                <span className="fee-option-label">Sin recargo</span>
-              </button>
-              <button
-                type="button"
-                className={`fee-option ${selectedFee === 2 ? 'active' : ''}`}
-                onClick={() => handleFeeSelect(2)}
-              >
-                <span className="fee-option-label">2%</span>
-              </button>
-              <button
-                type="button"
-                className={`fee-option ${selectedFee === 3 ? 'active' : ''}`}
-                onClick={() => handleFeeSelect(3)}
-              >
-                <span className="fee-option-label">3%</span>
-              </button>
-              <button
-                type="button"
-                className={`fee-option ${selectedFee === 'custom' ? 'active' : ''}`}
-                onClick={() => handleFeeSelect('custom')}
-              >
-                <span className="fee-option-label">Custom</span>
-              </button>
-            </div>
-            {showCustomFee && (
-              <div className="fee-custom-input visible">
-                <input
-                  type="number"
-                  placeholder="Ingresá %"
-                  inputMode="decimal"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  value={feeCustomValue}
-                  onChange={(e) => handleFeeCustomChange(e.target.value)}
-                />
+        <div className="divider" />
+
+        {/* ¿Qué tasa usa el local? */}
+        <div className="section">
+          <div className="section-title">¿Qué tasa usa el local?</div>
+          <div className="exchange-options">
+            <label className={`exchange-option ${selectedExchange === 'chaco' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="exchange"
+                value="chaco"
+                checked={selectedExchange === 'chaco'}
+                onChange={() => setSelectedExchange('chaco')}
+              />
+              <div className="exchange-option-content">
+                <span className="exchange-option-name">Cambios Chaco</span>
+                {rateChaco && <span className="exchange-option-rate">₲{rateChaco}</span>}
               </div>
-            )}
+            </label>
+            <label className={`exchange-option ${selectedExchange === 'maxi' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="exchange"
+                value="maxi"
+                checked={selectedExchange === 'maxi'}
+                onChange={() => setSelectedExchange('maxi')}
+              />
+              <div className="exchange-option-content">
+                <span className="exchange-option-name">Maxicambios</span>
+                {rateMaxi && <span className="exchange-option-rate">₲{rateMaxi}</span>}
+              </div>
+            </label>
+            <label className={`exchange-option ${selectedExchange === 'custom' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="exchange"
+                value="custom"
+                checked={selectedExchange === 'custom'}
+                onChange={() => setSelectedExchange('custom')}
+              />
+              <div className="exchange-option-content">
+                <span className="exchange-option-name">Personalizada</span>
+                {selectedExchange === 'custom' ? (
+                  <div
+                    className="exchange-custom-rate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="input-wrapper">
+                      <span className="currency-symbol">₲</span>
+                      <input
+                        type="text"
+                        className="rate-input"
+                        placeholder="6.200"
+                        inputMode="numeric"
+                        value={rateCustom}
+                        onChange={(e) => handleRateChange(setRateCustom, e.target.value)}
+                      />
+                    </div>
+                  </div>
+                ) : rateCustom ? (
+                  <span className="exchange-option-rate">₲{rateCustom}</span>
+                ) : null}
+              </div>
+            </label>
           </div>
         </div>
 
         <div className="divider" />
 
+        {/* Conversiones */}
         <div className="section-title">Conversiones</div>
-        <div id="results" className="results-compact">
-          {showEmptyState ? (
-            <div className="empty-state-mini">
-              Ingresá un monto en guaraníes y las tasas PYG para calcular
+        {showEmptyState ? (
+          <div className="empty-state-mini">
+            Ingresá un monto en guaraníes y las tasas PYG para calcular
+          </div>
+        ) : !selectedConv ? (
+          <div className="empty-state-mini">
+            {selectedExchange === 'custom'
+              ? 'Ingresá la tasa personalizada para calcular'
+              : `Ingresá la tasa de ${selectedExchangeName} para calcular`}
+          </div>
+        ) : (
+          <div className="results-compact">
+
+            {/* Efectivo USD */}
+            <div className="conv-card">
+              <button
+                type="button"
+                className="conv-card-header"
+                onClick={() => toggleExpansion('efectivo')}
+              >
+                <div className="conv-card-info">
+                  <div className="conv-card-row">
+                    <span className="conv-card-name">💵 Efectivo USD</span>
+                    {isCheapestEfectivoTarjeta && <span className="cheapest-badge">⭐ Más barato</span>}
+                  </div>
+                  <div className="conv-card-main-value">U$D {formatCurrency(selectedConv.usd)}</div>
+                  <div className="conv-card-subtitle">Cambiando en {selectedExchangeName}</div>
+                </div>
+                <span className="conv-card-chevron">{expansions.efectivo ? '▲' : '▼'}</span>
+              </button>
+              {expansions.efectivo && (
+                <div className="conv-card-expand">
+                  {results.map((conv, i) => (
+                    <div key={i} className="conv-expand-row">
+                      <span className="conv-expand-label">• {conv.source}</span>
+                      <span className="conv-expand-value-usd">U$D {formatCurrency(conv.usd)}</span>
+                    </div>
+                  ))}
+                  {hasTouristDiscount && (
+                    <div className="conv-tourist">
+                      <div className="conv-tourist-title">💰 Con descuento turista (-10%)</div>
+                      <div className="conv-expand-row">
+                        <span className="conv-expand-label">{selectedExchangeName}</span>
+                        <span className="conv-expand-value-usd">U$D {formatCurrency(selectedConv.usd * 0.9)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          ) : (
-            <>
-              {/* ── Card 1: Tarjeta de Crédito ── */}
-              {tarjetaRows.length > 0 && (
-                <div className="result-mini">
-                  <div className="result-card-header">
-                    <span className="result-card-name">💳 Tarjeta de Crédito Argentina</span>
-                    {cheapest === 'tarjeta' && <span className="cheapest-badge">⭐ Más barato</span>}
-                  </div>
 
-                  {/* Dólar Oficial */}
-                  {tarjetaRows.some((r) => r.arsRates.oficial != null) && (
-                    <>
-                      <div className="result-group-label">Dólar Oficial <span className="result-group-hint">(pagás con USD)</span></div>
-                      <div className="result-source-rows">
-                        {tarjetaRows.map((conv, i) =>
-                          conv.arsRates.oficial != null ? (
-                            <div key={i} className="result-source-row">
-                              {multi(tarjetaRows) && <span className="result-source-name">• {conv.source}</span>}
-                              <span className={`result-value-ars${multi(tarjetaRows) ? '' : ' large'}`}>
-                                AR${formatCurrency(conv.arsRates.oficial)}
-                              </span>
-                            </div>
-                          ) : null
+            {/* Tarjeta Argentina */}
+            {selectedConv.arsRates.tarjeta != null && (
+              <div className="conv-card">
+                <button
+                  type="button"
+                  className="conv-card-header"
+                  onClick={() => toggleExpansion('tarjeta')}
+                >
+                  <div className="conv-card-info">
+                    <div className="conv-card-row">
+                      <span className="conv-card-name">💳 Tarjeta Argentina</span>
+                      {isCheapestEfectivoTarjeta && <span className="cheapest-badge">⭐ Más barato</span>}
+                    </div>
+                    <div className="conv-card-main-value">
+                      AR${formatCurrency(selectedConv.arsRates.oficial ?? selectedConv.arsRates.tarjeta)}
+                    </div>
+                    <div className="conv-card-subtitle">
+                      {selectedConv.arsRates.oficial ? 'Dólar Oficial' : 'Dólar Tarjeta +30%'}
+                    </div>
+                  </div>
+                  <span className="conv-card-chevron">{expansions.tarjeta ? '▲' : '▼'}</span>
+                </button>
+                {expansions.tarjeta && (
+                  <div className="conv-card-expand">
+                    {selectedConv.arsRates.oficial != null && (
+                      <div className="conv-expand-row">
+                        <span className="conv-expand-label">Dólar Oficial (pagás con USD)</span>
+                        <span className="conv-expand-value-ars">AR${formatCurrency(selectedConv.arsRates.oficial)}</span>
+                      </div>
+                    )}
+                    <div className="conv-expand-row">
+                      <span className="conv-expand-label">Dólar Tarjeta +30% (pagás con ARS)</span>
+                      <span className="conv-expand-value-ars">AR${formatCurrency(selectedConv.arsRates.tarjeta)}</span>
+                    </div>
+                    <div className="result-official-info">
+                      💡 <strong>Dólar Oficial:</strong> si pagás tu tarjeta con USD<br />
+                      <strong>Dólar Tarjeta +30%:</strong> si pagás con pesos argentinos
+                    </div>
+                    {hasTouristDiscount && selectedConv.arsRates.oficial != null && (
+                      <div className="conv-tourist">
+                        <div className="conv-tourist-title">💰 Con descuento turista (-10%)</div>
+                        <div className="conv-expand-row">
+                          <span className="conv-expand-label">Oficial (con USD)</span>
+                          <span className="conv-expand-value-ars">AR${formatCurrency(selectedConv.arsRates.oficial * 0.9)}</span>
+                        </div>
+                        <div className="conv-expand-row">
+                          <span className="conv-expand-label">Tarjeta +30% (con ARS)</span>
+                          <span className="conv-expand-value-ars">AR${formatCurrency(selectedConv.arsRates.tarjeta * 0.9)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Billetera Virtual */}
+            {selectedConv.arsRates.custom != null && (
+              <div className="conv-card">
+                <button
+                  type="button"
+                  className="conv-card-header"
+                  onClick={() => toggleExpansion('billetera')}
+                >
+                  <div className="conv-card-info">
+                    <div className="conv-card-row">
+                      <span className="conv-card-name">💰 {walletDisplayName}</span>
+                      {isCheapestBilletera && <span className="cheapest-badge">⭐ Más barato</span>}
+                    </div>
+                    <div className="conv-card-main-value">
+                      AR${formatCurrency(
+                        feeIsActive && selectedConv.arsRates.customWithFee != null
+                          ? selectedConv.arsRates.customWithFee
+                          : selectedConv.arsRates.custom
+                      )}
+                    </div>
+                    <div className="conv-card-subtitle">
+                      {walletDisplayName} · {feeIsActive ? `+${selectedFee}% recargo` : 'Sin recargo'}
+                    </div>
+                  </div>
+                  <span className="conv-card-chevron">{expansions.billetera ? '▲' : '▼'}</span>
+                </button>
+                {expansions.billetera && (
+                  <div className="conv-card-expand">
+                    <div className="conv-expand-row">
+                      <span className="conv-expand-label">Sin recargo</span>
+                      <span className="conv-expand-value-ars">AR${formatCurrency(selectedConv.arsRates.custom)}</span>
+                    </div>
+                    {selectedConv.arsRates.customWithFee != null && (
+                      <div className="conv-expand-row">
+                        <span className="conv-expand-label">Con recargo +{selectedFee}%</span>
+                        <span className="conv-expand-value-ars">AR${formatCurrency(selectedConv.arsRates.customWithFee)}</span>
+                      </div>
+                    )}
+                    <div className="conv-fee-section">
+                      <div className="conv-fee-label">Recargo tarjeta billetera</div>
+                      <div className="fee-options">
+                        <button
+                          type="button"
+                          className={`fee-option ${selectedFee === 0 ? 'active' : ''}`}
+                          onClick={() => handleFeeSelect(0)}
+                        >
+                          <span className="fee-option-label">Sin recargo</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`fee-option ${selectedFee === 2 ? 'active' : ''}`}
+                          onClick={() => handleFeeSelect(2)}
+                        >
+                          <span className="fee-option-label">2%</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`fee-option ${selectedFee === 3 ? 'active' : ''}`}
+                          onClick={() => handleFeeSelect(3)}
+                        >
+                          <span className="fee-option-label">3%</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`fee-option ${selectedFee === 'custom' ? 'active' : ''}`}
+                          onClick={() => handleFeeSelect('custom')}
+                        >
+                          <span className="fee-option-label">Custom</span>
+                        </button>
+                      </div>
+                      {showCustomFee && (
+                        <div className="fee-custom-input visible">
+                          <input
+                            type="number"
+                            placeholder="Ingresá %"
+                            inputMode="decimal"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={feeCustomValue}
+                            onChange={(e) => handleFeeCustomChange(e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {hasTouristDiscount && (
+                      <div className="conv-tourist">
+                        <div className="conv-tourist-title">💰 Con descuento turista (-10%)</div>
+                        <div className="conv-expand-row">
+                          <span className="conv-expand-label">Sin recargo</span>
+                          <span className="conv-expand-value-ars">AR${formatCurrency(selectedConv.arsRates.custom! * 0.9)}</span>
+                        </div>
+                        {feeIsActive && selectedConv.arsRates.customWithFee != null && (
+                          <div className="conv-expand-row">
+                            <span className="conv-expand-label">Con recargo +{selectedFee}%</span>
+                            <span className="conv-expand-value-ars">AR${formatCurrency(selectedConv.arsRates.customWithFee * 0.9)}</span>
+                          </div>
                         )}
                       </div>
-                    </>
-                  )}
-
-                  {/* Dólar Tarjeta */}
-                  <div className="result-group-label">Dólar Tarjeta +30% <span className="result-group-hint">(pagás con ARS)</span></div>
-                  <div className="result-source-rows">
-                    {tarjetaRows.map((conv, i) => (
-                      <div key={i} className="result-source-row">
-                        {multi(tarjetaRows) && <span className="result-source-name">• {conv.source}</span>}
-                        <span className={`result-value-ars${multi(tarjetaRows) ? '' : ' large'}`}>
-                          AR${formatCurrency(conv.arsRates.tarjeta)}
-                        </span>
-                      </div>
-                    ))}
+                    )}
                   </div>
-
-                  <div className="result-official-info">
-                    💡 <strong>Dólar Oficial:</strong> si pagás tu tarjeta con USD<br />
-                    <strong>Dólar Tarjeta +30%:</strong> si pagás con pesos argentinos
-                  </div>
-
-                  {hasTouristDiscount && (
-                    <div className="result-tourist-section">
-                      <div className="result-tourist-title">💰 Con descuento turista (-10%):</div>
-                      <div className="result-source-rows">
-                        {tarjetaRows.map((conv, i) =>
-                          conv.arsRates.oficial != null ? (
-                            <div key={`of-${i}`} className="result-source-row">
-                              <span className="result-source-name">
-                                {multi(tarjetaRows) ? `• Oficial con USD (${conv.source})` : '• Oficial (con USD)'}
-                              </span>
-                              <span className="result-value-ars">
-                                AR${formatCurrency(conv.arsRates.oficial * 0.9)}
-                              </span>
-                            </div>
-                          ) : null
-                        )}
-                        {tarjetaRows.map((conv, i) => (
-                          <div key={`tar-${i}`} className="result-source-row">
-                            <span className="result-source-name">
-                              {multi(tarjetaRows) ? `• Tarjeta +30% (${conv.source})` : '• Tarjeta +30% (con ARS)'}
-                            </span>
-                            <span className="result-value-ars">
-                              AR${formatCurrency(conv.arsRates.tarjeta! * 0.9)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── Card 2: Billetera Virtual ── */}
-              {billeteraRows.length > 0 && (
-                <div className="result-mini">
-                  <div className="result-card-header">
-                    <span className="result-card-name">
-                      💰 Billetera Virtual{walletDisplayName !== 'Billetera Virtual' ? ` - ${walletDisplayName}` : ''}
-                    </span>
-                    {cheapest === 'billetera' && <span className="cheapest-badge">⭐ Más barato</span>}
-                  </div>
-                  <div className="result-source-rows">
-                    {billeteraRows.map((conv, i) => (
-                      <div key={i} className="result-source-row">
-                        {multi(billeteraRows) && <span className="result-source-name">• {conv.source}</span>}
-                        <span className={`result-value-ars${multi(billeteraRows) ? '' : ' large'}`}>
-                          AR${formatCurrency(conv.arsRates.custom)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  {feeIsActive && billeteraRows.some((r) => r.arsRates.customWithFee) && (
-                    <div className="result-fee-addendum">
-                      <div className="result-fee-addendum-label">+{selectedFee}% recargo</div>
-                      <div className="result-source-rows">
-                        {billeteraRows.map((conv, i) =>
-                          conv.arsRates.customWithFee ? (
-                            <div key={i} className="result-source-row">
-                              {multi(billeteraRows) && <span className="result-source-name">• {conv.source}</span>}
-                              <span className="result-fee-addendum-value">
-                                AR${formatCurrency(conv.arsRates.customWithFee)}
-                              </span>
-                            </div>
-                          ) : null
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {hasTouristDiscount && (
-                    <div className="result-tourist-section">
-                      <div className="result-tourist-title">💰 Con descuento turista (-10%):</div>
-                      <div className="result-source-rows">
-                        {billeteraRows.map((conv, i) => (
-                          <div key={`base-${i}`} className="result-source-row">
-                            <span className="result-source-name">
-                              {multi(billeteraRows) ? `• Sin recargo (${conv.source})` : '• Sin recargo'}
-                            </span>
-                            <span className="result-value-ars">
-                              AR${formatCurrency(conv.arsRates.custom! * 0.9)}
-                            </span>
-                          </div>
-                        ))}
-                        {feeIsActive &&
-                          billeteraRows.map((conv, i) =>
-                            conv.arsRates.customWithFee ? (
-                              <div key={`fee-${i}`} className="result-source-row">
-                                <span className="result-source-name">
-                                  {multi(billeteraRows)
-                                    ? `• Con recargo (${conv.source})`
-                                    : `• Con recargo (+${selectedFee}%)`}
-                                </span>
-                                <span className="result-value-ars">
-                                  AR${formatCurrency(conv.arsRates.customWithFee * 0.9)}
-                                </span>
-                              </div>
-                            ) : null
-                          )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── Card 3: Efectivo USD ── */}
-              {efectivoRows.length > 0 && (
-                <div className="result-mini">
-                  <div className="result-card-header">
-                    <span className="result-card-name">💵 Efectivo USD</span>
-                    {cheapest === 'efectivo' && <span className="cheapest-badge">⭐ Más barato</span>}
-                  </div>
-                  <div className="result-card-subtitle">Gastarías comprando guaraníes en:</div>
-                  <div className="result-source-rows">
-                    {efectivoRows.map((conv, i) => (
-                      <div key={i} className="result-source-row">
-                        <span className="result-source-name">• {conv.source}</span>
-                        <span className="result-value-usd">U$D {formatCurrency(conv.usd)}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {hasTouristDiscount && (
-                    <div className="result-tourist-section">
-                      <div className="result-tourist-title">💰 Con descuento turista (-10%):</div>
-                      <div className="result-source-rows">
-                        {efectivoRows.map((conv, i) => (
-                          <div key={i} className="result-source-row">
-                            <span className="result-source-name">• {conv.source}</span>
-                            <span className="result-value-usd">U$D {formatCurrency(conv.usd * 0.9)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="footer">Tasas ARS en vivo desde DolarApi.com</div>

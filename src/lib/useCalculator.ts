@@ -25,6 +25,7 @@ export const useCalculator = () => {
   const [feeCustomValue, setFeeCustomValue] = useState('');
   const [selectedWallet, setSelectedWallet] = useState('DollarApp');
   const [customWalletName, setCustomWalletName] = useState('');
+  const [selectedExchange, setSelectedExchange] = useState<'chaco' | 'maxi' | 'custom'>('chaco');
   const [arsRates, setArsRates] = useState<ARSRates>(DEFAULT_ARS_RATES);
   const [arsStatus, setArsStatus] = useState('Cargando...');
   const [isArsLoading, setIsArsLoading] = useState(true);
@@ -55,6 +56,7 @@ export const useCalculator = () => {
     }
     if (saved.selectedWallet) setSelectedWallet(saved.selectedWallet);
     if (saved.customWalletName != null) setCustomWalletName(saved.customWalletName);
+    if (saved.selectedExchange) setSelectedExchange(saved.selectedExchange);
   }, []);
 
   const fetchRates = useCallback(async () => {
@@ -97,8 +99,9 @@ export const useCalculator = () => {
       customFeeValue: feeCustomValue,
       selectedWallet,
       customWalletName,
+      selectedExchange,
     });
-  }, [pygAmount, rateChaco, rateMaxi, rateCustom, rateArsCustom, arsRates, selectedFee, feeCustomValue, selectedWallet, customWalletName]);
+  }, [pygAmount, rateChaco, rateMaxi, rateCustom, rateArsCustom, arsRates, selectedFee, feeCustomValue, selectedWallet, customWalletName, selectedExchange]);
 
   useEffect(() => {
     loadSavedData();
@@ -160,5 +163,7 @@ export const useCalculator = () => {
     setSelectedWallet,
     customWalletName,
     setCustomWalletName,
+    selectedExchange,
+    setSelectedExchange,
   };
 };

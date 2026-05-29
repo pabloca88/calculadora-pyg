@@ -789,3 +789,205 @@ label {
     height: 200px;
   }
 }
+
+/* ── Exchange selector ── */
+.exchange-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.exchange-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  min-height: 44px;
+  background: white;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.exchange-option.active {
+  border-color: var(--primary-blue);
+  background: #eff6ff;
+}
+
+.exchange-option input[type="radio"] {
+  accent-color: var(--primary-blue);
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.exchange-option-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+.exchange-option-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.exchange-option-rate {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--primary-blue);
+  flex-shrink: 0;
+}
+
+.exchange-custom-rate {
+  flex: 1;
+  max-width: 130px;
+}
+
+.exchange-custom-rate .currency-symbol {
+  font-size: 0.75rem;
+  left: 6px;
+}
+
+.exchange-custom-rate .rate-input {
+  font-size: 0.75rem;
+  padding: 6px 6px 6px 24px;
+  min-height: 36px;
+}
+
+/* ── Conversion cards ── */
+.conv-card {
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: white;
+}
+
+.conv-card-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  gap: 8px;
+  min-height: 72px;
+}
+
+.conv-card-header:active {
+  background: #f9fafb;
+}
+
+.conv-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.conv-card-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  flex-wrap: wrap;
+}
+
+.conv-card-name {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.conv-card-main-value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--primary-blue);
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+.conv-card-subtitle {
+  font-size: 0.5625rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.conv-card-chevron {
+  font-size: 0.625rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.conv-card-expand {
+  border-top: 1px solid var(--border);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #f9fafb;
+}
+
+.conv-expand-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.conv-expand-label {
+  font-size: 0.625rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.conv-expand-value-ars {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--success);
+  flex-shrink: 0;
+}
+
+.conv-expand-value-usd {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--primary-blue);
+  flex-shrink: 0;
+}
+
+.conv-tourist {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #d1d5db;
+}
+
+.conv-tourist-title {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #059669;
+  margin-bottom: 6px;
+}
+
+.conv-fee-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #dbeafe;
+}
+
+.conv-fee-label {
+  font-size: 0.5625rem;
+  color: var(--warning);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 8px;
+}
