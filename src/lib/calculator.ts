@@ -1,4 +1,4 @@
-import type { Conversion, ARSRates } from './types';
+import type { Conversion, ARSRates, PaymentMethod } from './types';
 import { parseNumber, parseDecimal } from './format';
 
 /**
@@ -101,3 +101,90 @@ export const hasValidInputs = (
 
   return amount > 0 && (chaco > 0 || maxi > 0 || custom > 0);
 };
+
+export const PAYMENT_METHODS_AR: PaymentMethod[] = [
+  {
+    id: 'tarjeta-banco',
+    name: 'Tarjeta banco argentino',
+    icon: '🏦',
+    network: 'Visa / Mastercard',
+    rateType: 'tarjeta',
+    fee: 0,
+    note: 'Tu banco aplica Dólar Tarjeta (Oficial +30%). Aplica a Santander, Galicia, BBVA, Nación, HSBC y cualquier banco argentino.',
+  },
+  {
+    id: 'mercado-pago',
+    name: 'Mercado Pago',
+    icon: '💙',
+    network: 'Mastercard',
+    rateType: 'tarjeta',
+    fee: 0,
+    note: 'La tarjeta prepaga de Mercado Pago Argentina cobra Dólar Tarjeta igual que un banco tradicional en compras en el exterior.',
+  },
+  {
+    id: 'arq-dolarapp',
+    name: 'ARQ / DollarApp',
+    icon: '💚',
+    network: 'Mastercard',
+    rateType: 'oficial',
+    fee: 0,
+    note: 'Usa tasa interbancaria real, sin comisión adicional. Generalmente la opción más económica entre las billeteras virtuales.',
+  },
+  {
+    id: 'payoneer',
+    name: 'Payoneer',
+    icon: '🔶',
+    network: 'Mastercard',
+    rateType: 'oficial',
+    fee: 1.8,
+    note: 'Usa tasa Mastercard (similar a interbancaria) + 1.8% de comisión por compras en el exterior.',
+  },
+  {
+    id: 'efectivo-usd',
+    name: 'Efectivo USD',
+    icon: '💵',
+    network: null,
+    rateType: 'market',
+    fee: 0,
+    note: 'Cambiás tus dólares físicos en una casa de cambio paraguaya y pagás en guaraníes.',
+  },
+];
+
+export function calcPaymentMethod(
+  method: PaymentMethod,
+  usdAmount: number,
+  arsRates: { oficial: number; tarjeta: number }
+): number | null {
+  if (!usdAmount || usdAmount <= 0) return null;
+  switch (method.rateType) {
+    case 'tarjeta':
+      return usdAmount * arsRates.tarjeta * (1 + method.fee / 100);
+    case 'oficial':
+      return usdAmount * arsRates.oficial * (1 + method.fee / 100);
+    case 'market':
+      return usdAmount; // retorna USD, no ARS
+    default:
+      return null;
+  }
+}
+
+export function getCheapestMethodIds(
+  usdAmount: number,
+  arsRates: { oficial: number; tarjeta: number }
+): string[] {
+  if (!usdAmount || usdAmount <= 0) return [];
+
+  const comparisons = PAYMENT_METHODS_AR.map(method => {
+    const arsValue =
+      method.rateType === 'market'
+        ? usdAmount * arsRates.oficial
+        : (calcPaymentMethod(method, usdAmount, arsRates) ?? Infinity);
+    return { id: method.id, arsValue };
+  });
+
+  const minValue = Math.min(...comparisons.map(c => c.arsValue));
+
+  return comparisons
+    .filter(c => Math.abs(c.arsValue - minValue) < 1)
+    .map(c => c.id);
+}

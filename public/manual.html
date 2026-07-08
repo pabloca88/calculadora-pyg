@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Cómo usar la Calculadora PYG</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0038A8; min-height: 100vh; padding: 20px 16px 40px; color: #1a1a2e; }
+  .container { max-width: 480px; margin: 0 auto; }
+  .header { text-align: center; padding: 20px 0 24px; color: white; }
+  .header h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+  .header p { font-size: 0.82rem; opacity: 0.85; }
+  .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+  .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .step-number { width: 36px; height: 36px; border-radius: 50%; background: #0038A8; color: white; font-size: 1rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .step-title { font-size: 1rem; font-weight: 700; color: #0038A8; line-height: 1.2; }
+  .step-subtitle { font-size: 0.75rem; color: #6b7280; margin-top: 2px; }
+  p { font-size: 0.85rem; color: #374151; line-height: 1.6; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  .highlight-box { background: #eff6ff; border: 1.5px solid #3b82f6; border-radius: 10px; padding: 12px 14px; margin: 10px 0; }
+  .highlight-box p { color: #1e40af; margin: 0; font-size: 0.82rem; }
+  .warning-box { background: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 10px; padding: 12px 14px; margin: 10px 0; }
+  .warning-box p { color: #92400e; margin: 0; font-size: 0.82rem; }
+  .example-box { background: #f0fdf4; border: 1.5px solid #22c55e; border-radius: 10px; padding: 14px; margin: 12px 0; }
+  .example-title { font-size: 0.7rem; font-weight: 700; color: #15803d; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .example-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #dcfce7; font-size: 0.82rem; }
+  .example-row:last-child { border-bottom: none; }
+  .example-label { color: #374151; }
+  .example-value { font-weight: 700; color: #15803d; }
+  .method-grid { display: grid; gap: 10px; margin: 10px 0; }
+  .method-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: #f9fafb; border-radius: 10px; border: 1px solid #f0f4f8; }
+  .method-emoji { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+  .method-name { font-size: 0.85rem; font-weight: 700; color: #1a1a2e; margin-bottom: 2px; }
+  .method-desc { font-size: 0.75rem; color: #6b7280; line-height: 1.4; }
+  .faq-item { padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
+  .faq-item:last-child { border-bottom: none; }
+  .faq-q { font-size: 0.85rem; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+  .faq-a { font-size: 0.8rem; color: #6b7280; line-height: 1.5; }
+  .cta-card { background: linear-gradient(135deg, #0038A8, #0055ff); border-radius: 16px; padding: 24px 20px; text-align: center; color: white; }
+  .cta-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+  .cta-card p { color: rgba(255,255,255,0.85); font-size: 0.82rem; margin-bottom: 16px; }
+  .cta-btn { display: inline-block; background: white; color: #0038A8; font-weight: 700; font-size: 0.9rem; padding: 12px 28px; border-radius: 10px; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>💱 Cómo usar la Calculadora PYG</h1>
+    <p>Guía rápida para calcular precios en Paraguay</p>
+  </div>
+  <div class="card">
+    <div class="step-header"><div class="step-number">1</div><div><div class="step-title">Ingresá el precio en guaraníes</div><div class="step-subtitle">El precio que ves en el local</div></div></div>
+    <p>Escribí el monto en guaraníes (₲). La app convierte automáticamente, sin que tengas que configurar nada.</p>
+    <div class="example-box"><div class="example-title">✏️ Ejemplo</div><div class="example-row"><span class="example-label">Precio en el local</span><span class="example-value">₲ 150.000</span></div></div>
+  </div>
+  <div class="card">
+    <div class="step-header"><div class="step-number">2</div><div><div class="step-title">La app calcula automáticamente</div><div class="step-subtitle">USD y ARS al instante, sin configuración</div></div></div>
+    <p>Al instante ves cuánto vale ese producto en dólares y en pesos argentinos, usando tasas actualizadas en tiempo real.</p>
+    <div class="highlight-box"><p>💡 La tasa USD/₲ se actualiza automáticamente desde una API de tipo de cambio. No necesitás ingresar ningún valor.</p></div>
+    <div class="example-box"><div class="example-title">✏️ Ejemplo — ₲150.000</div><div class="example-row"><span class="example-label">U$D 24,59</span><span class="example-value">tasa de mercado automática</span></div><div class="example-row"><span class="example-label">AR$ 37.480</span><span class="example-value">Dólar Oficial</span></div><div class="example-row"><span class="example-label">AR$ 48.724</span><span class="example-value">Tarjeta +30%</span></div></div>
+  </div>
+  <div class="card">
+    <div class="step-header"><div class="step-number">3</div><div><div class="step-title">Elegí cómo pagar</div><div class="step-subtitle">5 métodos con datos reales</div></div></div>
+    <p>La app calcula exactamente cuánto te sale según cómo pagues:</p>
+    <div class="method-grid">
+      <div class="method-item"><div class="method-emoji">🏦</div><div><div class="method-name">Tarjeta banco argentino</div><div class="method-desc">Dólar Tarjeta +30% (Santander, Galicia, BBVA, etc.)</div></div></div>
+      <div class="method-item"><div class="method-emoji">💙</div><div><div class="method-name">Mercado Pago</div><div class="method-desc">Dólar Tarjeta +30% (igual que banco tradicional en el exterior)</div></div></div>
+      <div class="method-item"><div class="method-emoji">💚</div><div><div class="method-name">ARQ / DollarApp</div><div class="method-desc">Tasa interbancaria, 0% comisión ⭐ La más barata</div></div></div>
+      <div class="method-item"><div class="method-emoji">🔶</div><div><div class="method-name">Payoneer</div><div class="method-desc">Tasa Mastercard + 1.8% comisión</div></div></div>
+      <div class="method-item"><div class="method-emoji">💵</div><div><div class="method-name">Efectivo USD</div><div class="method-desc">Cuántos dólares físicos necesitás</div></div></div>
+    </div>
+    <div class="warning-box"><p>⚠️ Si pagás con tarjeta bancaria argentina o Mercado Pago, tu banco aplica el Dólar Tarjeta (+30% sobre el Oficial). ARQ/DollarApp es significativamente más barato.</p></div>
+  </div>
+  <div class="card">
+    <div class="step-header"><div class="step-number">4</div><div><div class="step-title">¿Tenés dólares físicos?</div><div class="step-subtitle">Consultá tasas de casas de cambio</div></div></div>
+    <p>Al pie de la app encontrás las tasas de Cambios Chaco y Maxicambios. Ingresás cuánto te pagan por tus dólares y la app te muestra exactamente cuántos guaraníes necesitás para el producto.</p>
+    <div class="highlight-box"><p>💡 La mayoría de los locales de Ciudad del Este y Asunción usan Cambios Chaco como referencia para sus precios.</p></div>
+  </div>
+  <div class="card">
+    <div class="step-header"><div class="step-number">💡</div><div><div class="step-title">Precio Turista (-10%)</div><div class="step-subtitle">Algunos locales te hacen descuento</div></div></div>
+    <p>Algunos comercios aplican un <strong>10% de descuento a turistas</strong> porque no pagan IVA local. La app lo muestra automáticamente. <strong>Preguntale al vendedor antes de pagar.</strong></p>
+  </div>
+  <div class="card">
+    <div class="step-header"><div class="step-number">❓</div><div><div class="step-title">Preguntas frecuentes</div></div></div>
+    <div class="faq-item"><div class="faq-q">¿Las tasas se actualizan solas?</div><div class="faq-a">Sí. La tasa USD/₲ se actualiza automáticamente desde una API cada 10 minutos, y las tasas ARS (Oficial, Tarjeta) también se actualizan solas. Vos solo cargás el monto en guaraníes.</div></div>
+    <div class="faq-item"><div class="faq-q">¿Qué es Dólar Oficial vs Dólar Tarjeta?</div><div class="faq-a">El Dólar Oficial es la tasa del Banco Central. El Dólar Tarjeta es el Oficial +30% que cobra tu banco o Mercado Pago al pagar en el exterior.</div></div>
+    <div class="faq-item"><div class="faq-q">¿Cuál método conviene más?</div><div class="faq-a">Generalmente ARQ/DollarApp (tasa interbancaria, 0% comisión) o Efectivo USD. La tarjeta bancaria o Mercado Pago con Dólar Tarjeta (+30%) suelen ser las opciones más caras.</div></div>
+    <div class="faq-item"><div class="faq-q">¿Funciona sin internet?</div><div class="faq-a">La app necesita conexión para actualizar las tasas USD/₲ y ARS. Si no hay internet, usa la última tasa guardada en caché.</div></div>
+  </div>
+  <div class="cta-card">
+    <h3>¡Ya sabés todo lo que necesitás! 🎉</h3>
+    <p>Abrí la calculadora, cargá el precio y descubrí cuánto te sale realmente.</p>
+    <a href="https://calculadora-pyg.vercel.app" class="cta-btn">Abrir Calculadora →</a>
+  </div>
+</div>
+</body>
+</html>

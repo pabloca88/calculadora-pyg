@@ -50,6 +50,17 @@ export interface CachedARSData {
   timestamp: number;
 }
 
+// Tipo para métodos de pago argentinos (Fase 2)
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  icon: string;
+  network: string | null;
+  rateType: 'tarjeta' | 'oficial' | 'market';
+  fee: number;
+  note: string;
+}
+
 // Tipo para estado de la aplicación
 export interface CalculatorState {
   pygAmount: string;

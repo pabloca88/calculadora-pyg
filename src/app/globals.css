@@ -861,6 +861,247 @@ label {
   min-height: 36px;
 }
 
+/* ── Resultado automático PYG → USD (Fase 1) ── */
+.pyg-auto-section {
+  margin-bottom: 12px;
+}
+
+.pyg-auto-usd-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pyg-auto-usd-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--primary-blue);
+  line-height: 1.15;
+}
+
+.pyg-auto-status {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.pyg-auto-ars-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.pyg-auto-ars-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.pyg-auto-ars-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pyg-auto-custom-toggle {
+  font-size: 0.625rem;
+  color: var(--primary-blue);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  min-height: 44px;
+}
+
+.pyg-auto-custom-input {
+  margin-bottom: 6px;
+}
+
+/* ── Casas de cambio de referencia (Fase 3) ── */
+.casa-cambio-section {
+  border: 1.5px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-top: 16px;
+  background: white;
+}
+
+.casa-cambio-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  background: #f9fafb;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #374151;
+  min-height: 44px;
+}
+
+.casa-cambio-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.casa-cambio-market-rate {
+  font-size: 0.75rem;
+  color: #059669;
+  font-weight: 600;
+}
+
+.casa-cambio-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.casa-cambio-input-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #374151;
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.casa-cambio-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.casa-cambio-link-btn {
+  font-size: 0.7rem;
+  color: var(--primary-blue);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 6px 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.casa-cambio-help {
+  font-size: 0.65rem;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+/* ── Payment method cards (Fase 2) ── */
+.payment-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: white;
+}
+
+.payment-card.cheapest {
+  border-color: #22c98a;
+  background: linear-gradient(135deg, #f0fdf4, #ffffff);
+}
+
+.payment-card-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  gap: 8px;
+  min-height: 72px;
+}
+
+.payment-card-header:active {
+  background: rgba(0,0,0,0.02);
+}
+
+.payment-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.payment-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.payment-card-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.payment-card-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.payment-card-network {
+  font-size: 0.6rem;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.payment-card-value {
+  font-size: 1.375rem;
+  font-weight: 800;
+  color: #059669;
+  line-height: 1.2;
+}
+
+.payment-card-value.usd {
+  color: #0038A8;
+}
+
+.payment-card-label {
+  font-size: 0.625rem;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.payment-expand {
+  border-top: 1px solid var(--border);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #f9fafb;
+}
+
+.payment-expand-note {
+  font-size: 0.75rem;
+  color: #374151;
+  background: #f9fafb;
+  padding: 10px;
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+.payment-expand-tourist {
+  font-size: 0.75rem;
+  color: #059669;
+  font-weight: 600;
+}
+
 /* ── Conversion cards ── */
 .conv-card {
   border: 1.5px solid var(--border);

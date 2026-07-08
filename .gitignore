@@ -30,3 +30,7 @@ npm-debug.log*
 
 # Claude Code
 .claude/
+.vercel
+
+# TypeScript build cache
+*.tsbuildinfo

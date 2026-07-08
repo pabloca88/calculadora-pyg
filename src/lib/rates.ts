@@ -62,3 +62,50 @@ export const getARSStatus = (isLoading: boolean, error: boolean): string => {
   if (error) return 'Error';
   return 'LIVE';
 };
+
+const PYG_CACHE_KEY = 'pyg_rate_cache';
+const PYG_CACHE_TTL = 10 * 60 * 1000;
+
+interface PygRateCache {
+  rate: number;
+  timestamp: number;
+}
+
+/**
+ * Lee la caché de tasa PYG/USD sin disparar un fetch (para inspección de estado)
+ */
+export const getCachedPygRate = (): PygRateCache | null => {
+  if (typeof window === 'undefined') return null;
+  const cached = localStorage.getItem(PYG_CACHE_KEY);
+  if (!cached) return null;
+  try {
+    return JSON.parse(cached);
+  } catch {
+    return null;
+  }
+};
+
+export async function getPYGtoUSDRate(): Promise<number> {
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem(PYG_CACHE_KEY);
+    if (cached) {
+      const { rate, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < PYG_CACHE_TTL) return rate;
+    }
+  }
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    const data = await res.json();
+    const pygRate = data.rates.PYG;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(PYG_CACHE_KEY, JSON.stringify({ rate: pygRate, timestamp: Date.now() }));
+    }
+    return pygRate;
+  } catch {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem(PYG_CACHE_KEY);
+      if (cached) return JSON.parse(cached).rate;
+    }
+    return 6100;
+  }
+}
