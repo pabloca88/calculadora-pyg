@@ -5,7 +5,11 @@ import { useCalculator } from '@/lib/useCalculator';
 import { formatNumber, formatARSRate, validateARSRate, formatCurrency, parseNumber } from '@/lib/format';
 import { PAYMENT_METHODS_AR, calcPaymentMethod, getCheapestMethodIds } from '@/lib/calculator';
 
-const WALLETS = ['DollarApp', 'Wallbit', 'Wise', 'Binance', 'Otra'];
+const WALLETS = [
+  { value: 'arq', label: 'ARQ / DollarApp' },
+  { value: 'mercadopago', label: 'Mercado Pago' },
+  { value: 'payoneer', label: 'Payoneer' },
+];
 
 const PYG_STATUS_LABEL: Record<string, string> = {
   live: '🟢 en vivo',
@@ -33,14 +37,10 @@ export default function Page() {
     toggleExpansion,
     selectedWallet,
     setSelectedWallet,
-    customWalletName,
-    setCustomWalletName,
   } = useCalculator();
 
   const walletDisplayName =
-    selectedWallet === 'Otra'
-      ? (customWalletName.trim() || 'Billetera Virtual')
-      : selectedWallet;
+    WALLETS.find((w) => w.value === selectedWallet)?.label ?? WALLETS[0].label;
 
   // Casas de cambio de referencia (Fase 3)
   const [chacoRateInput, setChacoRateInput] = useState('');
@@ -257,18 +257,9 @@ export default function Page() {
               onChange={(e) => setSelectedWallet(e.target.value)}
             >
               {WALLETS.map((w) => (
-                <option key={w} value={w}>{w}</option>
+                <option key={w.value} value={w.value}>{w.label}</option>
               ))}
             </select>
-            {selectedWallet === 'Otra' && (
-              <input
-                type="text"
-                className="wallet-custom-input"
-                placeholder="Nombre de tu billetera"
-                value={customWalletName}
-                onChange={(e) => setCustomWalletName(e.target.value)}
-              />
-            )}
           </div>
 
           <div className="custom-ars-rate">
@@ -414,23 +405,34 @@ export default function Page() {
                 </div>
               </div>
 
-              <div className="casa-cambio-links">
-                <a
-                  href="https://www.cambioschaco.com.py/widgets/cotizacion/"
-                  target="_blank"
-                  rel="noopener noreferrer"
+              <div className="casa-cambio-widget">
+                <button
+                  type="button"
                   className="casa-cambio-link-btn"
+                  onClick={() => toggleExpansion('casaCambioChacoWidget')}
                 >
-                  🌐 Ver tasas Cambios Chaco
-                </a>
-                <a
-                  href="https://www.maxicambios.com.py/share"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  {expansions.casaCambioChacoWidget ? '🏦 Ocultar Cambios Chaco ▲' : '🏦 Ver tasas Cambios Chaco ▼'}
+                </button>
+                <iframe
+                  className={`widget-frame ${expansions.casaCambioChacoWidget ? 'expanded' : ''}`}
+                  src="https://www.cambioschaco.com.py/widgets/cotizacion/?lang=es"
+                  title="Cambios Chaco"
+                />
+              </div>
+
+              <div className="casa-cambio-widget">
+                <button
+                  type="button"
                   className="casa-cambio-link-btn"
+                  onClick={() => toggleExpansion('casaCambioMaxiWidget')}
                 >
-                  🌐 Ver tasas Maxicambios
-                </a>
+                  {expansions.casaCambioMaxiWidget ? '💵 Ocultar Maxicambios ▲' : '💵 Ver tasas Maxicambios ▼'}
+                </button>
+                <iframe
+                  className={`widget-frame ${expansions.casaCambioMaxiWidget ? 'expanded' : ''}`}
+                  src="https://www.maxicambios.com.py/share"
+                  title="Maxicambios"
+                />
               </div>
 
               <div className="casa-cambio-help">

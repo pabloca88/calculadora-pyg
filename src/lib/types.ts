@@ -30,7 +30,6 @@ export interface SavedCalculatorData {
   selectedFee: number | 'custom';
   customFeeValue: string;
   selectedWallet: string;
-  customWalletName: string;
   selectedExchange?: 'chaco' | 'maxi' | 'custom';
   lastSave: string;
 }

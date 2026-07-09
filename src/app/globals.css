@@ -181,6 +181,7 @@ label {
   display: block;
   transition: height 0.3s ease;
   overflow: hidden;
+  border-radius: 8px;
 }
 
 .widget-frame.expanded {
@@ -926,8 +927,18 @@ label {
   margin-bottom: 6px;
 }
 
+.pyg-auto-custom-input .currency-symbol {
+  left: 10px;
+  font-size: 0.875rem;
+}
+
+.pyg-auto-custom-input .rate-input {
+  padding-left: 34px;
+}
+
 /* ── Casas de cambio de referencia (Fase 3) ── */
 .casa-cambio-section {
+  font-family: inherit;
   border: 1.5px solid #e5e7eb;
   border-radius: 14px;
   overflow: hidden;
@@ -936,6 +947,7 @@ label {
 }
 
 .casa-cambio-header {
+  font-family: inherit;
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -944,13 +956,16 @@ label {
   cursor: pointer;
   background: #f9fafb;
   border: none;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   min-height: 44px;
 }
 
 .casa-cambio-body {
+  font-family: inherit;
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
@@ -958,36 +973,52 @@ label {
 }
 
 .casa-cambio-market-rate {
-  font-size: 0.75rem;
+  font-family: inherit;
+  font-size: 0.875rem;
   color: #059669;
   font-weight: 600;
 }
 
 .casa-cambio-input-row {
+  font-family: inherit;
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
+.casa-cambio-input-row .currency-symbol {
+  left: 10px;
+  font-size: 0.875rem;
+}
+
+.casa-cambio-input-row .rate-input {
+  padding-left: 34px;
+}
+
 .casa-cambio-input-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #374151;
+  font-family: inherit;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #6b7280;
   width: 110px;
   flex-shrink: 0;
 }
 
-.casa-cambio-links {
+.casa-cambio-widget {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .casa-cambio-link-btn {
+  font-family: inherit;
   font-size: 0.7rem;
   color: var(--primary-blue);
   text-decoration: underline;
   cursor: pointer;
+  background: none;
+  border: none;
+  text-align: left;
   padding: 6px 0;
   min-height: 44px;
   display: flex;
@@ -995,7 +1026,8 @@ label {
 }
 
 .casa-cambio-help {
-  font-size: 0.65rem;
+  font-family: inherit;
+  font-size: 0.625rem;
   color: #9ca3af;
   line-height: 1.4;
 }

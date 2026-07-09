@@ -16,8 +16,7 @@ export const saveCalculatorData = (data: Partial<SavedCalculatorData>): void => 
       arsCustomRate: data.arsCustomRate ?? '',
       selectedFee: data.selectedFee ?? 0,
       customFeeValue: data.customFeeValue ?? '',
-      selectedWallet: data.selectedWallet ?? 'DollarApp',
-      customWalletName: data.customWalletName ?? '',
+      selectedWallet: data.selectedWallet ?? 'arq',
       selectedExchange: data.selectedExchange ?? 'chaco',
       lastSave: new Date().toISOString(),
     };

@@ -85,6 +85,12 @@ export const getCachedPygRate = (): PygRateCache | null => {
   }
 };
 
+const cachePygRate = (rate: number): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(PYG_CACHE_KEY, JSON.stringify({ rate, timestamp: Date.now() }));
+  }
+};
+
 export async function getPYGtoUSDRate(): Promise<number> {
   if (typeof window !== 'undefined') {
     const cached = localStorage.getItem(PYG_CACHE_KEY);
@@ -93,19 +99,49 @@ export async function getPYGtoUSDRate(): Promise<number> {
       if (Date.now() - timestamp < PYG_CACHE_TTL) return rate;
     }
   }
+
+  // Primary: exchangerate-api.com (legacy free endpoint, sin auth)
+  // Nota: frankfurter.app fue evaluada pero no cubre PYG (solo ~30 monedas ECB).
+  try {
+    const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+    if (res.ok) {
+      const data = await res.json();
+      const rate = data.rates?.PYG;
+      if (rate && rate > 0) {
+        cachePygRate(rate);
+        return rate;
+      }
+    }
+  } catch {
+    // sigue al fallback
+  }
+
+  // Secondary: open.er-api.com
   try {
     const res = await fetch('https://open.er-api.com/v6/latest/USD');
-    const data = await res.json();
-    const pygRate = data.rates.PYG;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(PYG_CACHE_KEY, JSON.stringify({ rate: pygRate, timestamp: Date.now() }));
+    if (res.ok) {
+      const data = await res.json();
+      const rate = data.rates?.PYG;
+      if (rate && rate > 0) {
+        cachePygRate(rate);
+        return rate;
+      }
     }
-    return pygRate;
   } catch {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem(PYG_CACHE_KEY);
-      if (cached) return JSON.parse(cached).rate;
-    }
-    return 6100;
+    // sigue al fallback
   }
+
+  // Usa la caché aunque esté vencida
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem(PYG_CACHE_KEY);
+    if (cached) {
+      try {
+        return JSON.parse(cached).rate;
+      } catch {
+        // sigue al fallback final
+      }
+    }
+  }
+
+  return 6100;
 }

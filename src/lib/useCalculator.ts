@@ -25,8 +25,7 @@ export const useCalculator = () => {
   const [rateArsCustom, setRateArsCustom] = useState('');
   const [selectedFee, setSelectedFee] = useState<number | 'custom'>(0);
   const [feeCustomValue, setFeeCustomValue] = useState('');
-  const [selectedWallet, setSelectedWallet] = useState('DollarApp');
-  const [customWalletName, setCustomWalletName] = useState('');
+  const [selectedWallet, setSelectedWallet] = useState('arq');
   const [selectedExchange, setSelectedExchange] = useState<'chaco' | 'maxi' | 'custom'>('chaco');
   const [arsRates, setArsRates] = useState<ARSRates>(DEFAULT_ARS_RATES);
   const [arsStatus, setArsStatus] = useState('Cargando...');
@@ -59,7 +58,6 @@ export const useCalculator = () => {
       }
     }
     if (saved.selectedWallet) setSelectedWallet(saved.selectedWallet);
-    if (saved.customWalletName != null) setCustomWalletName(saved.customWalletName);
     if (saved.selectedExchange) setSelectedExchange(saved.selectedExchange);
   }, []);
 
@@ -120,10 +118,9 @@ export const useCalculator = () => {
       selectedFee,
       customFeeValue: feeCustomValue,
       selectedWallet,
-      customWalletName,
       selectedExchange,
     });
-  }, [pygAmount, rateChaco, rateMaxi, rateCustom, rateArsCustom, arsRates, selectedFee, feeCustomValue, selectedWallet, customWalletName, selectedExchange]);
+  }, [pygAmount, rateChaco, rateMaxi, rateCustom, rateArsCustom, arsRates, selectedFee, feeCustomValue, selectedWallet, selectedExchange]);
 
   useEffect(() => {
     loadSavedData();
@@ -191,8 +188,6 @@ export const useCalculator = () => {
     isError,
     selectedWallet,
     setSelectedWallet,
-    customWalletName,
-    setCustomWalletName,
     selectedExchange,
     setSelectedExchange,
   };
