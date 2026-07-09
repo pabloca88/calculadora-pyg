@@ -13,7 +13,6 @@ export const saveCalculatorData = (data: Partial<SavedCalculatorData>): void => 
       rateChaco: data.rateChaco ?? 0,
       rateMaxi: data.rateMaxi ?? 0,
       customRate: data.customRate ?? 0,
-      arsCustomRate: data.arsCustomRate ?? '',
       selectedFee: data.selectedFee ?? 0,
       customFeeValue: data.customFeeValue ?? '',
       selectedWallet: data.selectedWallet ?? 'arq',

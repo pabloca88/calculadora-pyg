@@ -113,33 +113,6 @@ export const PAYMENT_METHODS_AR: PaymentMethod[] = [
     note: 'Tu banco aplica Dólar Tarjeta (Oficial +30%). Aplica a Santander, Galicia, BBVA, Nación, HSBC y cualquier banco argentino.',
   },
   {
-    id: 'mercado-pago',
-    name: 'Mercado Pago',
-    icon: '💙',
-    network: 'Mastercard',
-    rateType: 'tarjeta',
-    fee: 0,
-    note: 'La tarjeta prepaga de Mercado Pago Argentina cobra Dólar Tarjeta igual que un banco tradicional en compras en el exterior.',
-  },
-  {
-    id: 'arq-dolarapp',
-    name: 'ARQ / DollarApp',
-    icon: '💚',
-    network: 'Mastercard',
-    rateType: 'oficial',
-    fee: 0,
-    note: 'Usa tasa interbancaria real, sin comisión adicional. Generalmente la opción más económica entre las billeteras virtuales.',
-  },
-  {
-    id: 'payoneer',
-    name: 'Payoneer',
-    icon: '🔶',
-    network: 'Mastercard',
-    rateType: 'oficial',
-    fee: 1.8,
-    note: 'Usa tasa Mastercard (similar a interbancaria) + 1.8% de comisión por compras en el exterior.',
-  },
-  {
     id: 'efectivo-usd',
     name: 'Efectivo USD',
     icon: '💵',
@@ -149,6 +122,39 @@ export const PAYMENT_METHODS_AR: PaymentMethod[] = [
     note: 'Cambiás tus dólares físicos en una casa de cambio paraguaya y pagás en guaraníes.',
   },
 ];
+
+// Card fija (no seleccionable): Mercado Pago cobra Dólar Tarjeta igual que un banco.
+export const MERCADO_PAGO_METHOD: PaymentMethod = {
+  id: 'mercado-pago',
+  name: 'Mercado Pago',
+  icon: '💙',
+  network: 'Mastercard',
+  rateType: 'tarjeta',
+  fee: 0,
+  note: 'Mercado Pago aplica Dólar Tarjeta igual que un banco tradicional al pagar en el exterior.',
+};
+
+// Billetera virtual seleccionable desde el dropdown "Billetera Virtual"
+export const WALLET_METHODS: Record<'arq' | 'payoneer', PaymentMethod> = {
+  arq: {
+    id: 'arq-dolarapp',
+    name: 'ARQ / DollarApp',
+    icon: '💚',
+    network: 'Mastercard',
+    rateType: 'oficial',
+    fee: 0,
+    note: 'Usa tasa interbancaria real, sin comisión adicional. Generalmente la opción más económica entre las billeteras virtuales.',
+  },
+  payoneer: {
+    id: 'payoneer',
+    name: 'Payoneer',
+    icon: '🔶',
+    network: 'Mastercard',
+    rateType: 'oficial',
+    fee: 1.8,
+    note: 'Usa tasa Mastercard (similar a interbancaria) + 1.8% de comisión por compras en el exterior.',
+  },
+};
 
 export function calcPaymentMethod(
   method: PaymentMethod,
@@ -170,11 +176,12 @@ export function calcPaymentMethod(
 
 export function getCheapestMethodIds(
   usdAmount: number,
-  arsRates: { oficial: number; tarjeta: number }
+  arsRates: { oficial: number; tarjeta: number },
+  methods: PaymentMethod[] = PAYMENT_METHODS_AR
 ): string[] {
   if (!usdAmount || usdAmount <= 0) return [];
 
-  const comparisons = PAYMENT_METHODS_AR.map(method => {
+  const comparisons = methods.map(method => {
     const arsValue =
       method.rateType === 'market'
         ? usdAmount * arsRates.oficial

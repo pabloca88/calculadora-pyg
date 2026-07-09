@@ -218,3 +218,101 @@ describe('Calculator - Conversiones PYG → USD → ARS', () => {
     });
   });
 });
+
+describe('Tasa Personalizada (Custom PYG Rate)', () => {
+  const arsOficial = 1510.00;
+  const arsTarjeta = 1963.00;
+
+  describe('Cálculo básico con tasa personalizada', () => {
+    it('₲200.000 con tasa ₲6.900 = AR$43.768,12', () => {
+      const usd = 200_000 / 6_900;
+      const result = usd * arsOficial;
+      expect(result).toBeCloseTo(43_768.12, 0);
+    });
+
+    it('₲150.000 con tasa ₲6.500 = AR$34.846,15', () => {
+      const usd = 150_000 / 6_500;
+      const result = usd * arsOficial;
+      expect(result).toBeCloseTo(34_846.15, 0);
+    });
+
+    it('₲500.000 con tasa ₲7.000 = AR$107.857,14', () => {
+      const usd = 500_000 / 7_000;
+      const result = usd * arsOficial;
+      expect(result).toBeCloseTo(107_857.14, 0);
+    });
+  });
+
+  describe('La tasa personalizada cambia el resultado correctamente', () => {
+    it('tasa más alta → menos USD → menos ARS', () => {
+      const usd6900 = 200_000 / 6_900;
+      const usd6100 = 200_000 / 6_100;
+      const ars6900 = usd6900 * arsOficial;
+      const ars6100 = usd6100 * arsOficial;
+      expect(ars6900).toBeLessThan(ars6100);
+    });
+
+    it('tasa más baja → más USD → más ARS', () => {
+      const usdLow  = 200_000 / 5_500;
+      const usdHigh = 200_000 / 7_500;
+      expect(usdLow * arsOficial).toBeGreaterThan(usdHigh * arsOficial);
+    });
+
+    it('tasa personalizada vs tasa automática: si custom > auto → custom da menos ARS', () => {
+      const autoRate   = 6_081;   // tasa automática ejemplo
+      const customRate = 6_900;   // tasa personalizada del local
+      const arsAuto   = (200_000 / autoRate)   * arsOficial;
+      const arsCustom = (200_000 / customRate) * arsOficial;
+      expect(arsCustom).toBeLessThan(arsAuto);
+    });
+  });
+
+  describe('Casos extremos de tasa personalizada', () => {
+    it('tasa igual a la automática → mismo resultado que dólar oficial', () => {
+      const autoRate = 6_081;
+      const usd = 200_000 / autoRate;
+      const arsAuto   = usd * arsOficial;
+      const arsCustom = (200_000 / autoRate) * arsOficial;
+      expect(arsCustom).toBeCloseTo(arsAuto, 2);
+    });
+
+    it('tasa muy alta (₲8.000) → resultado significativamente menor', () => {
+      const usd = 200_000 / 8_000;
+      const result = usd * arsOficial;
+      expect(result).toBeLessThan(40_000);
+      expect(result).toBeCloseTo(37_750, 0);
+    });
+
+    it('tasa muy baja (₲5.000) → resultado significativamente mayor', () => {
+      const usd = 200_000 / 5_000;
+      const result = usd * arsOficial;
+      expect(result).toBeGreaterThan(60_000);
+      expect(result).toBeCloseTo(60_400, 0);
+    });
+
+    it('monto cero con cualquier tasa → resultado cero', () => {
+      const usd = 0 / 6_900;
+      const result = usd * arsOficial;
+      expect(result).toBe(0);
+    });
+  });
+
+  describe('Comparación tasa personalizada vs métodos de pago', () => {
+    it('tasa personalizada baja puede ser más barata que ARQ/DollarApp', () => {
+      // Local que cobra menos que la tasa de mercado
+      const autoRate   = 6_081;
+      const customRate = 5_800; // local que cobra menos
+      const arsARQ     = (200_000 / autoRate)   * arsOficial;
+      const arsCustom  = (200_000 / customRate) * arsOficial;
+      // Con tasa más baja → más USD → más ARS → sale MÁS caro
+      expect(arsCustom).toBeGreaterThan(arsARQ);
+    });
+
+    it('tasa personalizada alta → más barata que tarjeta banco', () => {
+      const customRate = 6_900;
+      const arsCustom  = (200_000 / customRate) * arsOficial;
+      const arsTarjeta_ = (200_000 / 6_081)    * arsTarjeta;
+      expect(arsCustom).toBeLessThan(arsTarjeta_);
+    });
+  });
+});

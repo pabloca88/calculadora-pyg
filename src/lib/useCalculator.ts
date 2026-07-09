@@ -22,7 +22,6 @@ export const useCalculator = () => {
   const [rateChaco, setRateChaco] = useState('');
   const [rateMaxi, setRateMaxi] = useState('');
   const [rateCustom, setRateCustom] = useState('');
-  const [rateArsCustom, setRateArsCustom] = useState('');
   const [selectedFee, setSelectedFee] = useState<number | 'custom'>(0);
   const [feeCustomValue, setFeeCustomValue] = useState('');
   const [selectedWallet, setSelectedWallet] = useState('arq');
@@ -47,7 +46,6 @@ export const useCalculator = () => {
     if (saved.rateChaco) setRateChaco(saved.rateChaco.toLocaleString('es-PY'));
     if (saved.rateMaxi) setRateMaxi(saved.rateMaxi.toLocaleString('es-PY'));
     if (saved.customRate) setRateCustom(saved.customRate.toLocaleString('es-PY'));
-    if (saved.arsCustomRate) setRateArsCustom(saved.arsCustomRate);
     if (saved.selectedFee !== undefined) {
       if (saved.selectedFee === 'custom') {
         setSelectedFee('custom');
@@ -79,9 +77,9 @@ export const useCalculator = () => {
     setArsStatus(getARSStatus(false, error));
   }, []);
 
-  const fetchPygRate = useCallback(async () => {
+  const fetchPygRate = useCallback(async (force = false) => {
     const before = getCachedPygRate();
-    const rate = await getPYGtoUSDRate();
+    const rate = await getPYGtoUSDRate(force);
     const after = getCachedPygRate();
 
     let status: PygRateStatus;
@@ -103,7 +101,7 @@ export const useCalculator = () => {
       rateChaco,
       rateMaxi,
       rateCustom,
-      rateArsCustom,
+      '',
       arsRates,
       selectedFee
     );
@@ -114,13 +112,12 @@ export const useCalculator = () => {
       rateChaco: parseNumber(rateChaco),
       rateMaxi: parseNumber(rateMaxi),
       customRate: parseNumber(rateCustom),
-      arsCustomRate: rateArsCustom,
       selectedFee,
       customFeeValue: feeCustomValue,
       selectedWallet,
       selectedExchange,
     });
-  }, [pygAmount, rateChaco, rateMaxi, rateCustom, rateArsCustom, arsRates, selectedFee, feeCustomValue, selectedWallet, selectedExchange]);
+  }, [pygAmount, rateChaco, rateMaxi, rateCustom, arsRates, selectedFee, feeCustomValue, selectedWallet, selectedExchange]);
 
   useEffect(() => {
     loadSavedData();
@@ -162,8 +159,6 @@ export const useCalculator = () => {
     setRateMaxi,
     rateCustom,
     setRateCustom,
-    rateArsCustom,
-    setRateArsCustom,
     selectedFee,
     feeCustomValue,
     arsRates,
@@ -171,6 +166,7 @@ export const useCalculator = () => {
     isArsLoading,
     pygUsdRate,
     pygRateStatus,
+    fetchPygRate,
     showOptionalArs,
     setShowOptionalArs,
     showCustomFee,

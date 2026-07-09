@@ -26,7 +26,6 @@ export interface SavedCalculatorData {
   rateChaco: number;
   rateMaxi: number;
   customRate: number;
-  arsCustomRate: string;
   selectedFee: number | 'custom';
   customFeeValue: string;
   selectedWallet: string;
@@ -66,7 +65,6 @@ export interface CalculatorState {
   rateChaco: string;
   rateMaxi: string;
   rateCustom: string;
-  rateArsCustom: string;
   selectedFee: number | 'custom';
   feeCustomValue: string;
   arsRates: ARSRates;

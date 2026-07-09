@@ -17,7 +17,6 @@ describe('saveCalculatorData / loadCalculatorData', () => {
       rateChaco: 6200,
       rateMaxi: 6300,
       customRate: 6100,
-      arsCustomRate: '1300',
       selectedFee: 3,
       customFeeValue: '',
     });
@@ -28,7 +27,6 @@ describe('saveCalculatorData / loadCalculatorData', () => {
     expect(loaded!.rateChaco).toBe(6200);
     expect(loaded!.rateMaxi).toBe(6300);
     expect(loaded!.customRate).toBe(6100);
-    expect(loaded!.arsCustomRate).toBe('1300');
     expect(loaded!.selectedFee).toBe(3);
   });
 

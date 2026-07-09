@@ -91,8 +91,8 @@ const cachePygRate = (rate: number): void => {
   }
 };
 
-export async function getPYGtoUSDRate(): Promise<number> {
-  if (typeof window !== 'undefined') {
+export async function getPYGtoUSDRate(force = false): Promise<number> {
+  if (!force && typeof window !== 'undefined') {
     const cached = localStorage.getItem(PYG_CACHE_KEY);
     if (cached) {
       const { rate, timestamp } = JSON.parse(cached);
@@ -102,6 +102,12 @@ export async function getPYGtoUSDRate(): Promise<number> {
 
   // Primary: exchangerate-api.com (legacy free endpoint, sin auth)
   // Nota: frankfurter.app fue evaluada pero no cubre PYG (solo ~30 monedas ECB).
+  // Nota: se evaluó api.exchangerate-api.com/v6 (404 sin API key propia — su v6 real
+  // vive en v6.exchangerate-api.com/v6/{key}/...) y open.er-api.com/v6 (mismo proveedor
+  // de datos que este v4: retorna 6080.620932 vs 6080.62 acá, diferencia despreciable).
+  // Ninguna de las dos alternativas evaluadas mejora el gap actual (~0.13%) contra la
+  // tasa mid-market de Wise; ese gap es esperable porque Wise usa su propio feed en
+  // tiempo real mientras esta fuente gratuita se actualiza con menor frecuencia.
   try {
     const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
     if (res.ok) {

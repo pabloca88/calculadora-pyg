@@ -2,20 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useCalculator } from '@/lib/useCalculator';
-import { formatNumber, formatARSRate, validateARSRate, formatCurrency, parseNumber } from '@/lib/format';
-import { PAYMENT_METHODS_AR, calcPaymentMethod, getCheapestMethodIds } from '@/lib/calculator';
+import { formatNumber, formatCurrency, parseNumber } from '@/lib/format';
+import { PAYMENT_METHODS_AR, MERCADO_PAGO_METHOD, WALLET_METHODS, calcPaymentMethod, getCheapestMethodIds } from '@/lib/calculator';
 
 const WALLETS = [
   { value: 'arq', label: 'ARQ / DollarApp' },
-  { value: 'mercadopago', label: 'Mercado Pago' },
   { value: 'payoneer', label: 'Payoneer' },
 ];
-
-const PYG_STATUS_LABEL: Record<string, string> = {
-  live: '🟢 en vivo',
-  cached: '🟡 en caché',
-  fallback: '🔴 sin conexión',
-};
 
 export default function Page() {
   const {
@@ -23,14 +16,13 @@ export default function Page() {
     setPygAmount,
     rateCustom,
     setRateCustom,
-    rateArsCustom,
-    setRateArsCustom,
     arsRates,
     arsStatus,
     isArsLoading,
     isError,
     pygUsdRate,
     pygRateStatus,
+    fetchPygRate,
     showOptionalArs,
     setShowOptionalArs,
     expansions,
@@ -39,8 +31,13 @@ export default function Page() {
     setSelectedWallet,
   } = useCalculator();
 
-  const walletDisplayName =
-    WALLETS.find((w) => w.value === selectedWallet)?.label ?? WALLETS[0].label;
+  const [isRefreshingPyg, setIsRefreshingPyg] = useState(false);
+
+  const handleRefreshPygRate = async () => {
+    setIsRefreshingPyg(true);
+    await fetchPygRate(true);
+    setIsRefreshingPyg(false);
+  };
 
   // Casas de cambio de referencia (Fase 3)
   const [chacoRateInput, setChacoRateInput] = useState('');
@@ -69,9 +66,6 @@ export default function Page() {
 
   const handleAmountChange = (value: string) => setPygAmount(formatNumber(value));
   const handleRateChange = (setter: (value: string) => void, value: string) => setter(formatNumber(value));
-  const handleArsCustomChange = (value: string) => setRateArsCustom(formatARSRate(value));
-
-  const arsCustomValidation = rateArsCustom ? validateARSRate(rateArsCustom) : null;
 
   const pygAmountRaw = parseNumber(pygAmount);
   const hasTouristDiscount = pygAmountRaw > 0;
@@ -88,12 +82,16 @@ export default function Page() {
   const customUsdAmount = hasAmount && customPygRateVal > 0 ? pygAmountRaw / customPygRateVal : 0;
   const customPygARS = customUsdAmount > 0 && arsRates.oficial ? customUsdAmount * arsRates.oficial : null;
 
-  // Métodos de pago argentinos (Fase 2)
+  // Métodos de pago argentinos (Fase 2) — orden fijo: Tarjeta banco, Mercado Pago, [billetera elegida], Efectivo USD
   const arsRatesForPayment = arsRates.oficial && arsRates.tarjeta
     ? { oficial: arsRates.oficial, tarjeta: arsRates.tarjeta }
     : null;
+  const tarjetaBancoMethod = PAYMENT_METHODS_AR.find((m) => m.id === 'tarjeta-banco')!;
+  const efectivoUsdMethod = PAYMENT_METHODS_AR.find((m) => m.id === 'efectivo-usd')!;
+  const walletMethod = WALLET_METHODS[selectedWallet === 'payoneer' ? 'payoneer' : 'arq'];
+  const paymentCards = [tarjetaBancoMethod, MERCADO_PAGO_METHOD, walletMethod, efectivoUsdMethod];
   const cheapestIds = hasAmount && arsRatesForPayment
-    ? getCheapestMethodIds(usdAmount, arsRatesForPayment)
+    ? getCheapestMethodIds(usdAmount, arsRatesForPayment, paymentCards)
     : [];
 
   const renderEfectivoUsdRates = () => {
@@ -150,24 +148,48 @@ export default function Page() {
         <div className="divider" />
 
         <div className="pyg-auto-section">
-          <div className="pyg-auto-usd-row">
-            <span className="pyg-auto-usd-value">
-              U$D {hasAmount ? formatCurrency(usdAmount) : '0,00'}
-            </span>
-            <span className="pyg-auto-status">{PYG_STATUS_LABEL[pygRateStatus]}</span>
+          <div className="result-box">
+            <div className="result-box-left">
+              <span className="result-box-symbol">U$D</span>
+              <span className="result-box-value">{hasAmount ? formatCurrency(usdAmount) : '0,00'}</span>
+            </div>
+            {isRefreshingPyg ? (
+              <span className="result-box-label">⏳ actualizando...</span>
+            ) : pygRateStatus === 'live' ? (
+              <span className="result-box-label">🟢 en vivo</span>
+            ) : pygRateStatus === 'cached' ? (
+              <button type="button" className="pyg-refresh-btn" onClick={handleRefreshPygRate}>
+                🔄 Actualizar
+              </button>
+            ) : (
+              <span className="result-box-label pyg-refresh-fallback">
+                🔴 sin conexión
+                <button
+                  type="button"
+                  className="pyg-refresh-icon-btn"
+                  onClick={handleRefreshPygRate}
+                  aria-label="Actualizar tasa"
+                >
+                  🔄
+                </button>
+              </span>
+            )}
           </div>
 
-          <div className="pyg-auto-ars-row">
-            <span className="pyg-auto-ars-value">
-              AR${formatCurrency(oficialARS)}
-            </span>
-            <span className="pyg-auto-ars-label">Dólar Oficial</span>
+          <div className="result-box">
+            <div className="result-box-left">
+              <span className="result-box-symbol">AR$</span>
+              <span className="result-box-value">{formatCurrency(oficialARS)}</span>
+            </div>
+            <span className="result-box-label">Dólar Oficial</span>
           </div>
-          <div className="pyg-auto-ars-row">
-            <span className="pyg-auto-ars-value">
-              AR${formatCurrency(tarjetaARS)}
-            </span>
-            <span className="pyg-auto-ars-label">Tarjeta +30%</span>
+
+          <div className="result-box">
+            <div className="result-box-left">
+              <span className="result-box-symbol">AR$</span>
+              <span className="result-box-value">{formatCurrency(tarjetaARS)}</span>
+            </div>
+            <span className="result-box-label">Tarjeta +30%</span>
           </div>
 
           <button
@@ -193,11 +215,12 @@ export default function Page() {
             </div>
           )}
           {customPygARS != null && (
-            <div className="pyg-auto-ars-row">
-              <span className="pyg-auto-ars-value">
-                AR${formatCurrency(customPygARS)}
-              </span>
-              <span className="pyg-auto-ars-label">Tasa personalizada</span>
+            <div className="result-box result-box--custom">
+              <div className="result-box-left">
+                <span className="result-box-symbol">AR$</span>
+                <span className="result-box-value">{formatCurrency(customPygARS)}</span>
+              </div>
+              <span className="result-box-label">Tasa personalizada</span>
             </div>
           )}
         </div>
@@ -210,16 +233,29 @@ export default function Page() {
             <span className={`ars-status ${isArsLoading ? 'loading' : isError ? 'error' : ''}`}>{arsStatus}</span>
           </div>
 
-          <div className="ars-rates">
-            <div className="ars-rate-item">
-              <div className="ars-rate-name">Oficial</div>
-              <div className="ars-rate-value">
+          <div className="wallet-selector-wrapper">
+            <label>Billetera Virtual</label>
+            <select
+              className="wallet-select"
+              value={selectedWallet}
+              onChange={(e) => setSelectedWallet(e.target.value)}
+            >
+              {WALLETS.map((w) => (
+                <option key={w.value} value={w.value}>{w.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="ars-rates-compact">
+            <div className="ars-rate-compact-item">
+              <div className="ars-rate-compact-label">Oficial</div>
+              <div className="ars-rate-compact-value">
                 {arsRates.oficial ? `AR$${arsRates.oficial.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '-'}
               </div>
             </div>
-            <div className="ars-rate-item">
-              <div className="ars-rate-name">Tarjeta</div>
-              <div className="ars-rate-value">
+            <div className="ars-rate-compact-item">
+              <div className="ars-rate-compact-label">Tarjeta</div>
+              <div className="ars-rate-compact-value">
                 {arsRates.tarjeta ? `AR$${arsRates.tarjeta.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '-'}
               </div>
             </div>
@@ -248,41 +284,6 @@ export default function Page() {
               </div>
             </div>
           </div>
-
-          <div className="wallet-selector-wrapper">
-            <label>Billetera Virtual</label>
-            <select
-              className="wallet-select"
-              value={selectedWallet}
-              onChange={(e) => setSelectedWallet(e.target.value)}
-            >
-              {WALLETS.map((w) => (
-                <option key={w.value} value={w.value}>{w.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="custom-ars-rate">
-            <label htmlFor="rate-ars-custom">Tasa {walletDisplayName}</label>
-            <div className="input-wrapper">
-              <span className="currency-symbol">AR$</span>
-              <input
-                id="rate-ars-custom"
-                type="text"
-                className={`rate-input${arsCustomValidation ? (arsCustomValidation.isValid ? ' valid' : ' error') : ''}`}
-                placeholder="1.471,41"
-                inputMode="decimal"
-                value={rateArsCustom}
-                onChange={(e) => handleArsCustomChange(e.target.value)}
-                aria-label="Tasa en pesos argentinos"
-              />
-            </div>
-            {arsCustomValidation && !arsCustomValidation.isValid ? (
-              <div className="input-error">⚠️ {arsCustomValidation.message}</div>
-            ) : (
-              <div className="input-helper">💡 Formato: 1.471,41 (punto miles, coma decimales)</div>
-            )}
-          </div>
         </div>
 
         <div className="divider" />
@@ -295,7 +296,7 @@ export default function Page() {
           </div>
         ) : (
           <div className="results-compact">
-            {PAYMENT_METHODS_AR.map((method) => {
+            {paymentCards.map((method) => {
               const isCheapest = cheapestIds.includes(method.id);
               const isMarket = method.rateType === 'market';
               const rawValue = isMarket
@@ -367,7 +368,7 @@ export default function Page() {
           </button>
           {expansions.casaCambio && (
             <div className="casa-cambio-body">
-              <p>Para cambiar USD físicos a guaraníes antes de comprar</p>
+              <p className="casa-cambio-intro">Para cambiar USD físicos a guaraníes</p>
 
               <div>
                 <div className="casa-cambio-market-rate">
@@ -408,10 +409,11 @@ export default function Page() {
               <div className="casa-cambio-widget">
                 <button
                   type="button"
-                  className="casa-cambio-link-btn"
+                  className="casa-cambio-widget-toggle"
                   onClick={() => toggleExpansion('casaCambioChacoWidget')}
                 >
-                  {expansions.casaCambioChacoWidget ? '🏦 Ocultar Cambios Chaco ▲' : '🏦 Ver tasas Cambios Chaco ▼'}
+                  <span>🏦 Cambios Chaco</span>
+                  <span className="conv-card-chevron">{expansions.casaCambioChacoWidget ? '▲' : '▼'}</span>
                 </button>
                 <iframe
                   className={`widget-frame ${expansions.casaCambioChacoWidget ? 'expanded' : ''}`}
@@ -423,10 +425,11 @@ export default function Page() {
               <div className="casa-cambio-widget">
                 <button
                   type="button"
-                  className="casa-cambio-link-btn"
+                  className="casa-cambio-widget-toggle"
                   onClick={() => toggleExpansion('casaCambioMaxiWidget')}
                 >
-                  {expansions.casaCambioMaxiWidget ? '💵 Ocultar Maxicambios ▲' : '💵 Ver tasas Maxicambios ▼'}
+                  <span>💵 Maxicambios</span>
+                  <span className="conv-card-chevron">{expansions.casaCambioMaxiWidget ? '▲' : '▼'}</span>
                 </button>
                 <iframe
                   className={`widget-frame ${expansions.casaCambioMaxiWidget ? 'expanded' : ''}`}

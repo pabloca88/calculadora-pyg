@@ -321,6 +321,30 @@ label {
   color: var(--primary-blue);
 }
 
+.ars-rates-compact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: rgba(255,255,255,0.6);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.ars-rate-compact-label {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  color: #6b7280;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.ars-rate-compact-value {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0038A8;
+}
+
 .ars-optional {
   margin-top: 8px;
   padding-top: 8px;
@@ -349,29 +373,6 @@ label {
 
 .ars-optional-rates.visible {
   display: grid;
-}
-
-.custom-ars-rate {
-  margin-top: 8px;
-  padding-top: 0;
-}
-
-.custom-ars-rate label {
-  font-size: 0.5625rem;
-  margin-bottom: 6px;
-}
-
-.custom-ars-rate .currency-symbol {
-  font-size: 0.5rem;
-  font-weight: 900;
-  left: 6px;
-  letter-spacing: -0.02em;
-}
-
-.custom-ars-rate input {
-  font-size: 0.875rem;
-  padding: 8px 8px 8px 30px;
-  min-height: 44px;
 }
 
 .card-fee-section {
@@ -690,10 +691,7 @@ label {
 }
 
 .wallet-selector-wrapper {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #dbeafe;
-  margin-bottom: 0;
+  margin-bottom: 10px;
 }
 
 .wallet-selector-wrapper label {
@@ -724,65 +722,6 @@ label {
   border-color: var(--primary-blue);
   background-color: white;
   box-shadow: 0 0 0 3px rgba(0,56,168,0.08);
-}
-
-.wallet-custom-input {
-  width: 100%;
-  font-size: 0.875rem;
-  font-weight: 600;
-  padding: 8px 10px;
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-input);
-  color: var(--text-primary);
-  min-height: 44px;
-  margin-top: 6px;
-}
-
-.wallet-custom-input:focus {
-  outline: none;
-  border-color: var(--primary-blue);
-  background: white;
-  box-shadow: 0 0 0 3px rgba(0,56,168,0.08);
-}
-
-.input-helper {
-  font-size: 0.625rem;
-  color: var(--text-secondary);
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  line-height: 1.4;
-}
-
-.input-error {
-  font-size: 0.625rem;
-  color: #dc2626;
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  line-height: 1.4;
-}
-
-.rate-input.valid {
-  border-color: #10b981;
-}
-
-.rate-input.valid:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
-}
-
-.rate-input.error {
-  border-color: #dc2626;
-  background: #fef2f2;
-}
-
-.rate-input.error:focus {
-  border-color: #dc2626;
-  box-shadow: 0 0 0 3px rgba(220,38,38,0.10);
 }
 
 @media (min-width: 440px) {
@@ -865,50 +804,83 @@ label {
 /* ── Resultado automático PYG → USD (Fase 1) ── */
 .pyg-auto-section {
   margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.pyg-auto-usd-row {
+.result-box {
+  background: #f8fafc;
+  border: 2px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.result-box--custom {
+  border-color: #CE1126;
+}
+
+.result-box-left {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 6px;
+  min-width: 0;
 }
 
-.pyg-auto-usd-value {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: var(--primary-blue);
-  line-height: 1.15;
-}
-
-.pyg-auto-status {
-  font-size: 0.6rem;
+.result-box-symbol {
+  font-size: 0.875rem;
+  color: #6b7280;
   font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.pyg-auto-ars-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 0;
-}
-
-.pyg-auto-ars-value {
-  font-size: 1.1rem;
+.result-box-value {
+  font-size: 1.25rem;
   font-weight: 700;
   color: #1a1a2e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.pyg-auto-ars-label {
-  font-size: 0.65rem;
+.result-box-label {
+  font-size: 0.625rem;
+  color: #9ca3af;
   font-weight: 600;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.pyg-refresh-fallback {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pyg-refresh-btn,
+.pyg-refresh-icon-btn {
+  font-family: inherit;
+  background: none;
+  border: none;
+  color: var(--warning);
+  font-size: 0.6rem;
+  cursor: pointer;
+  text-decoration: underline;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  pointer-events: auto;
+}
+
+.pyg-refresh-icon-btn {
+  text-decoration: none;
+  font-size: 0.7rem;
+  padding: 2px;
 }
 
 .pyg-auto-custom-toggle {
@@ -972,6 +944,16 @@ label {
   gap: 12px;
 }
 
+.casa-cambio-intro {
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: #374151;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .casa-cambio-market-rate {
   font-family: inherit;
   font-size: 0.875rem;
@@ -1007,22 +989,29 @@ label {
 .casa-cambio-widget {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
-.casa-cambio-link-btn {
+.casa-cambio-widget-toggle {
   font-family: inherit;
-  font-size: 0.7rem;
-  color: var(--primary-blue);
-  text-decoration: underline;
-  cursor: pointer;
-  background: none;
-  border: none;
-  text-align: left;
-  padding: 6px 0;
-  min-height: 44px;
+  width: 100%;
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  background: white;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  min-height: 44px;
+  transition: border-color 0.15s ease;
+}
+
+.casa-cambio-widget-toggle:hover {
+  border-color: var(--primary-blue);
 }
 
 .casa-cambio-help {
