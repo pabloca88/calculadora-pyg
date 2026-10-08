@@ -5,6 +5,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://calculadora-pyg.vercel.app'),
   title: '💱 Calculadora PYG',
   description: 'Calculadora PWA de monedas Paraguay (PYG → USD → ARS)',
   manifest: '/manifest.json',

@@ -20,7 +20,9 @@ async function waitForEfectivoRateReady(page: Page) {
     .locator('.payment-card')
     .filter({ hasText: 'Efectivo USD' })
     .locator('.payment-card-label');
-  await expect(label).toHaveText(/compra ₲/, { timeout: 15000 });
+  // Cambios Chaco es la única fuente para Efectivo USD (ya no compara con
+  // Maxicambios), así que el label siempre debe decir "Chaco compra ₲...".
+  await expect(label).toHaveText(/Chaco compra ₲/, { timeout: 15000 });
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -159,6 +161,8 @@ test('T10 - La API /api/pyg-rates devuelve tasas válidas de Cambios Chaco', asy
 });
 
 test('T11 - La API /api/pyg-rates devuelve tasas válidas de Maxicambios', async ({ page }) => {
+  // La API sigue scrapeando Maxi (se usa en el iframe de "Ver cotizaciones de
+  // casas de cambio"), aunque Efectivo USD ya no lo use para calcular.
   const response = await page.request.get('/api/pyg-rates');
   const data = await response.json();
   expect(data.maxi?.compra).toBeGreaterThan(4000);
@@ -197,17 +201,34 @@ test('T14 - La card Tarjeta banco argentino muestra Dólar Tarjeta +30%', async 
   await expect(card).toContainText(/Tarjeta \+30%|Dólar Tarjeta/i);
 });
 
-test('T15 - La card Efectivo USD usa tasa de Cambios Chaco (no tasa de mercado)', async ({ page }) => {
+test('T15 - La card Efectivo USD usa SOLO la tasa de Cambios Chaco (no Maxi, no mercado)', async ({ page }) => {
   await page.goto('/');
   await enterAmount(page, '100000');
   await waitForEfectivoRateReady(page);
   // Get the Efectivo USD card
   const efectivoCard = page.locator('.payment-card').filter({ hasText: 'Efectivo USD' });
   await expect(efectivoCard).toBeVisible();
+
+  // El label de la card debe decir "Chaco compra ₲..." y nunca mencionar Maxi
+  // (Cambios Chaco es la única fuente, ya no se compara contra Maxicambios).
+  const labelText = (await efectivoCard.locator('.payment-card-label').textContent()) ?? '';
+  expect(labelText).toMatch(/Chaco compra ₲/);
+  expect(labelText).not.toMatch(/Maxi/i);
+
+  // El input "Cambios Chaco compra USD" está siempre visible en el flujo
+  // principal — no vive dentro de ningún collapsible.
+  const chacoInputRow = page.locator('.casa-cambio-input-row').filter({ hasText: 'Cambios Chaco' });
+  await expect(chacoInputRow).toBeVisible();
+
+  // No debe existir un input de Maxicambios en el flujo principal de cálculo
+  // (Maxi solo aparece como iframe de consulta dentro de "Ver cotizaciones").
+  const maxiInputRow = page.locator('.casa-cambio-input-row').filter({ hasText: 'Maxicambios' });
+  await expect(maxiInputRow).toHaveCount(0);
+
   const usdText = (await efectivoCard.textContent()) ?? '';
-  // With ₲100.000 y la tasa COMPRA real de una casa de cambio paraguaya
-  // (~5.500-5.800), el resultado real está en ~17-18 USD. La tasa de mercado
-  // (~5836) daría 17,13 — distinto a lo que debería mostrar esta card.
+  // With ₲100.000 y la tasa COMPRA real de Cambios Chaco (~5.500-5.800), el
+  // resultado real está en ~17-18 USD. La tasa de mercado (~5836) daría
+  // 17,13 — distinto a lo que debería mostrar esta card.
   const match = usdText.match(/U\$D\s*([\d]+[,.][\d]+)/);
   expect(match).not.toBeNull();
   if (match) {
@@ -299,8 +320,8 @@ test('T20 - REGRESIÓN: ₲100.000 efectivo NO muestra 17,13 USD (bug viejo)', a
   await waitForEfectivoRateReady(page);
 
   // El bug viejo mostraba U$D 17,13 usando la tasa de mercado (5.836).
-  // Con la tasa COMPRA real de Chaco/Maxi (~5.500-5.700), el resultado debe
-  // ser distinto (más alto).
+  // Con la tasa COMPRA real de Cambios Chaco (~5.500-5.800), el resultado
+  // debe ser distinto (más alto).
   const efectivoCard = page.locator('.payment-card').filter({ hasText: 'Efectivo USD' });
   const text = (await efectivoCard.textContent()) ?? '';
   const match = text.match(/U\$D\s*([\d]+[,.][\d]+)/);
