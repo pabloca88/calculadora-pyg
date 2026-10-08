@@ -10,8 +10,13 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   icons: [
     { rel: 'icon', url: '/favicon.ico' },
-    { rel: 'apple-touch-icon', url: '/apple-touch-icon.png' }
+    { rel: 'apple-touch-icon', url: '/app-logo.png' },
   ],
+  openGraph: {
+    title: 'Calculadora PYG',
+    description: 'Calculá cuánto cuesta realmente pagar en guaraníes según el medio de pago',
+    images: [{ url: '/app-logo.png', width: 1254, height: 1254 }],
+  },
   keywords: ['calculator', 'paraguay', 'pyg', 'usd', 'ars', 'currency'],
 };
 
