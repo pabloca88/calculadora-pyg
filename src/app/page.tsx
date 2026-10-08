@@ -10,6 +10,43 @@ const WALLETS = [
   { value: 'payoneer', label: 'Payoneer' },
 ];
 
+const CHACO_OVERRIDE_KEY = 'chaco_rate';
+const CHACO_OVERRIDE_TTL_MS = 12 * 60 * 60 * 1000;
+
+interface ChacoOverride {
+  value: string;
+  savedAt: number;
+}
+
+/**
+ * Lee el override manual de Cambios Chaco si todavía es válido (< 12hs).
+ * También descarta el formato viejo (string plano, sin TTL) para que un
+ * valor tipeado hace meses no tape la tasa automática para siempre.
+ */
+const readValidChacoOverride = (): string | null => {
+  const raw = localStorage.getItem(CHACO_OVERRIDE_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof parsed.value === 'string' &&
+      typeof parsed.savedAt === 'number'
+    ) {
+      if (Date.now() - parsed.savedAt < CHACO_OVERRIDE_TTL_MS) {
+        return parsed.value;
+      }
+    }
+  } catch {
+    // formato viejo (string plano) u otro JSON inválido: se descarta abajo
+  }
+
+  localStorage.removeItem(CHACO_OVERRIDE_KEY);
+  return null;
+};
+
 export default function Page() {
   const {
     pygAmount,
@@ -52,9 +89,12 @@ export default function Page() {
   const [calibUsd, setCalibUsd] = useState('');
 
   useEffect(() => {
-    const chaco = localStorage.getItem('chaco_rate');
-    if (chaco) {
-      setChacoRateInput(chaco);
+    // Key legacy de una versión anterior donde Maxi también era manual
+    localStorage.removeItem('maxi_rate');
+
+    const override = readValidChacoOverride();
+    if (override) {
+      setChacoRateInput(override);
       setChacoManualOverride(true);
     }
   }, []);
@@ -70,8 +110,18 @@ export default function Page() {
     const formatted = formatNumber(value);
     setChacoRateInput(formatted);
     setChacoManualOverride(!!formatted);
-    if (formatted) localStorage.setItem('chaco_rate', formatted);
-    else localStorage.removeItem('chaco_rate');
+    if (formatted) {
+      const override: ChacoOverride = { value: formatted, savedAt: Date.now() };
+      localStorage.setItem(CHACO_OVERRIDE_KEY, JSON.stringify(override));
+    } else {
+      localStorage.removeItem(CHACO_OVERRIDE_KEY);
+    }
+  };
+
+  const handleUseAutomaticChacoRate = () => {
+    localStorage.removeItem(CHACO_OVERRIDE_KEY);
+    setChacoManualOverride(false);
+    setChacoRateInput(pygHouseRates.chaco.compra ? pygHouseRates.chaco.compra.toLocaleString('es-PY') : '');
   };
 
   const handleAmountChange = (value: string) => setPygAmount(formatNumber(value));
@@ -471,8 +521,18 @@ export default function Page() {
                 />
               </div>
             </div>
+            {chacoManualOverride && (
+              <div className="casa-cambio-override-row">
+                <span className="casa-cambio-override-label">
+                  Manual{pygHouseRates.chaco.compra ? ` · auto: ₲${pygHouseRates.chaco.compra.toLocaleString('es-PY')}` : ''}
+                </span>
+                <button type="button" className="pyg-refresh-btn" onClick={handleUseAutomaticChacoRate}>
+                  ↺ Usar automático
+                </button>
+              </div>
+            )}
             <div className="casa-cambio-help">
-              Se actualiza automáticamente (🟢). Si escribís tu valor, se guarda y reemplaza el automático.
+              Se actualiza automáticamente (🟢). Si escribís tu valor, se guarda por 12hs y reemplaza el automático.
             </div>
           </div>
 
