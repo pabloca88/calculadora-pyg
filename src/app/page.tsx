@@ -46,23 +46,16 @@ export default function Page() {
   // Casas de cambio de referencia (Fase 3) — el usuario puede sobreescribir
   // manualmente el valor "Compra USD" traído por scraping desde /api/pyg-rates
   const [chacoRateInput, setChacoRateInput] = useState('');
-  const [maxiRateInput, setMaxiRateInput] = useState('');
   const [chacoManualOverride, setChacoManualOverride] = useState(false);
-  const [maxiManualOverride, setMaxiManualOverride] = useState(false);
   const [showCalibForm, setShowCalibForm] = useState(false);
   const [calibGs, setCalibGs] = useState('');
   const [calibUsd, setCalibUsd] = useState('');
 
   useEffect(() => {
     const chaco = localStorage.getItem('chaco_rate');
-    const maxi = localStorage.getItem('maxi_rate');
     if (chaco) {
       setChacoRateInput(chaco);
       setChacoManualOverride(true);
-    }
-    if (maxi) {
-      setMaxiRateInput(maxi);
-      setMaxiManualOverride(true);
     }
   }, []);
 
@@ -73,26 +66,12 @@ export default function Page() {
     }
   }, [chacoManualOverride, pygHouseRates.chaco.compra]);
 
-  useEffect(() => {
-    if (!maxiManualOverride && pygHouseRates.maxi.compra) {
-      setMaxiRateInput(pygHouseRates.maxi.compra.toLocaleString('es-PY'));
-    }
-  }, [maxiManualOverride, pygHouseRates.maxi.compra]);
-
   const handleChacoRateChange = (value: string) => {
     const formatted = formatNumber(value);
     setChacoRateInput(formatted);
     setChacoManualOverride(!!formatted);
     if (formatted) localStorage.setItem('chaco_rate', formatted);
     else localStorage.removeItem('chaco_rate');
-  };
-
-  const handleMaxiRateChange = (value: string) => {
-    const formatted = formatNumber(value);
-    setMaxiRateInput(formatted);
-    setMaxiManualOverride(!!formatted);
-    if (formatted) localStorage.setItem('maxi_rate', formatted);
-    else localStorage.removeItem('maxi_rate');
   };
 
   const handleAmountChange = (value: string) => setPygAmount(formatNumber(value));
@@ -117,16 +96,11 @@ export default function Page() {
   const customUsdAmount = hasAmount && customPygRateVal > 0 ? pygAmountRaw / customPygRateVal : 0;
   const customPygARS = customUsdAmount > 0 && arsRates.oficial ? customUsdAmount * arsRates.oficial : null;
 
-  // Efectivo USD: el usuario vende sus dólares físicos a una casa de cambio
-  // paraguaya, que le paga su tasa COMPRA (no la venta, no el mercado).
-  // Usamos la más alta entre Cambios Chaco y Maxicambios (scrapeada o
-  // ingresada a mano), que es la que le conviene más al usuario.
+  // Efectivo USD: el usuario vende sus dólares físicos a Cambios Chaco
+  // (tasa COMPRA — lo que la casa paga al usuario por sus dólares).
+  // Cambios Chaco es la fuente primaria; Maxi queda como consulta secundaria.
   const chacoCompra = parseNumber(chacoRateInput) || null;
-  const maxiCompra = parseNumber(maxiRateInput) || null;
-  const bestExchangeCompra =
-    chacoCompra && maxiCompra ? Math.max(chacoCompra, maxiCompra) : chacoCompra || maxiCompra || null;
-  const bestExchangeSource: 'chaco' | 'maxi' | null =
-    !bestExchangeCompra ? null : maxiCompra === bestExchangeCompra && maxiCompra !== chacoCompra ? 'maxi' : 'chaco';
+  const bestExchangeCompra = chacoCompra;
   const usdAmountEfectivo =
     pygAmountRaw > 0 && bestExchangeCompra ? pygAmountRaw / bestExchangeCompra : 0;
 
@@ -163,36 +137,20 @@ export default function Page() {
       return (
         <div className="conv-expand-row">
           <span className="conv-expand-label">
-            ⚠️ Ingresá la tasa compra de Cambios Chaco o Maxicambios al pie para calcular
+            ⚠️ La tasa de Cambios Chaco se carga automáticamente. Si falla, ingresala manualmente en la sección de abajo.
           </span>
         </div>
       );
     }
-    const sourceLabel = bestExchangeSource === 'chaco' ? 'Cambios Chaco' : 'Maxicambios';
-    const sourceBadge =
-      bestExchangeSource === 'chaco'
-        ? chacoManualOverride ? 'manual' : 'API'
-        : maxiManualOverride ? 'manual' : 'API';
-    const updatedAt = bestExchangeSource === 'chaco' ? pygHouseRates.chaco.updatedAt : null;
+    const sourceBadge = chacoManualOverride ? 'manual' : 'API';
+    const updatedAt = pygHouseRates.chaco.updatedAt;
     return (
-      <>
-        <div className="conv-expand-row">
-          <span className="conv-expand-label">
-            Tasa: {sourceLabel} compra ₲{bestExchangeCompra.toLocaleString('es-PY')}
-            {' '}({sourceBadge}{updatedAt ? ` · ${updatedAt}` : ''})
-          </span>
-        </div>
-        {chacoRateInput && (
-          <div className="conv-expand-row">
-            <span className="conv-expand-label">• Cambios Chaco: ₲{chacoRateInput}/USD</span>
-          </div>
-        )}
-        {maxiRateInput && (
-          <div className="conv-expand-row">
-            <span className="conv-expand-label">• Maxicambios: ₲{maxiRateInput}/USD</span>
-          </div>
-        )}
-      </>
+      <div className="conv-expand-row">
+        <span className="conv-expand-label">
+          Tasa: Cambios Chaco compra ₲{bestExchangeCompra.toLocaleString('es-PY')}
+          {' '}({sourceBadge}{updatedAt ? ` · ${updatedAt}` : ''})
+        </span>
+      </div>
     );
   };
 
@@ -442,8 +400,8 @@ export default function Page() {
               const rateLabel =
                 method.id === 'efectivo-usd'
                   ? bestExchangeCompra
-                    ? `${bestExchangeSource === 'chaco' ? 'Chaco' : 'Maxi'} compra ₲${bestExchangeCompra.toLocaleString('es-PY')}`
-                    : 'Falta tasa de cambio ⚠️'
+                    ? `Chaco compra ₲${bestExchangeCompra.toLocaleString('es-PY')}`
+                    : 'Falta tasa Cambios Chaco ⚠️'
                   : method.id === 'arq-dolarapp'
                     ? `₲${effectiveDollarAppRate.rate.toLocaleString('es-PY', { maximumFractionDigits: 2 })}/USD (medida ${effectiveDollarAppRate.measuredAt.slice(5).split('-').reverse().join('/')})${dollarAppDaysOld > 7 ? ' 🟡' : ''}`
                     : method.rateType === 'tarjeta' ? 'Dólar Tarjeta +30%' :
@@ -492,60 +450,44 @@ export default function Page() {
           </div>
         )}
 
-        {/* Tasas de casas de cambio (Fase 3) */}
+        {/* Tasa Cambios Chaco — fuente primaria para Efectivo USD */}
         <div className="casa-cambio-section">
+          <div className="casa-cambio-body">
+            <div className="casa-cambio-input-row">
+              <span className="casa-cambio-input-label">
+                🏦 Cambios Chaco compra USD
+                {!chacoManualOverride && pygHouseRates.chaco.compra ? ' 🟢' : ''}
+                {pygHouseRates.chaco.updatedAt ? ` · ${pygHouseRates.chaco.updatedAt}` : ''}
+              </span>
+              <div className="input-wrapper">
+                <span className="currency-symbol">₲</span>
+                <input
+                  type="text"
+                  className="rate-input"
+                  placeholder={isHouseRatesLoading ? 'Cargando...' : '5.800'}
+                  inputMode="numeric"
+                  value={chacoRateInput}
+                  onChange={(e) => handleChacoRateChange(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="casa-cambio-help">
+              Se actualiza automáticamente (🟢). Si escribís tu valor, se guarda y reemplaza el automático.
+            </div>
+          </div>
+
+          {/* Casas de cambio — consulta secundaria */}
           <button
             type="button"
             className="casa-cambio-header"
             onClick={() => toggleExpansion('casaCambio')}
           >
-            <span>🏦 Tasas de casas de cambio</span>
+            <span>📊 Ver cotizaciones de casas de cambio</span>
             <span>{expansions.casaCambio ? '▲' : '▼'}</span>
           </button>
           {expansions.casaCambio && (
             <div className="casa-cambio-body">
-              <p className="casa-cambio-intro">Para cambiar USD físicos a guaraníes</p>
-
-              <div>
-                <div className="casa-cambio-market-rate">
-                  Tasa de mercado (referencia, no usada en Efectivo USD): ₲
-                  {pygUsdRate.toLocaleString('es-PY', { maximumFractionDigits: 2 })} / USD
-                </div>
-              </div>
-
-              <div className="casa-cambio-input-row">
-                <span className="casa-cambio-input-label">
-                  Cambios Chaco{!chacoManualOverride && pygHouseRates.chaco.compra ? ' 🟢 auto' : ''}
-                  {pygHouseRates.chaco.updatedAt ? ` (${pygHouseRates.chaco.updatedAt})` : ''}
-                </span>
-                <div className="input-wrapper">
-                  <span className="currency-symbol">₲</span>
-                  <input
-                    type="text"
-                    className="rate-input"
-                    placeholder={isHouseRatesLoading ? 'Cargando...' : '5.580'}
-                    inputMode="numeric"
-                    value={chacoRateInput}
-                    onChange={(e) => handleChacoRateChange(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="casa-cambio-input-row">
-                <span className="casa-cambio-input-label">
-                  Maxicambios{!maxiManualOverride && pygHouseRates.maxi.compra ? ' 🟢 auto' : ''}
-                </span>
-                <div className="input-wrapper">
-                  <span className="currency-symbol">₲</span>
-                  <input
-                    type="text"
-                    className="rate-input"
-                    placeholder={isHouseRatesLoading ? 'Cargando...' : '5.500'}
-                    inputMode="numeric"
-                    value={maxiRateInput}
-                    onChange={(e) => handleMaxiRateChange(e.target.value)}
-                  />
-                </div>
-              </div>
+              <p className="casa-cambio-intro">Consultá los sitios en vivo para comparar antes de ir</p>
 
               <div className="casa-cambio-widget">
                 <button
@@ -577,11 +519,6 @@ export default function Page() {
                   src="https://www.maxicambios.com.py/share"
                   title="Maxicambios"
                 />
-              </div>
-
-              <div className="casa-cambio-help">
-                ℹ️ Las tasas &quot;Compra USD&quot; se traen automáticamente (🟢 auto). Si escribís
-                la tuya, queda guardada y se usa en vez de la automática.
               </div>
             </div>
           )}
