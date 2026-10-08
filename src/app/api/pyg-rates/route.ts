@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
-import { parseChaco, parseMaxi, type ExchangeHouseRate } from '@/lib/pygScraping';
+import { parseChaco, type ExchangeHouseRate } from '@/lib/pygScraping';
 
 export interface PygRatesResponse {
   chaco: ExchangeHouseRate;
-  maxi: ExchangeHouseRate;
   source: 'scraping';
   cachedAt: string;
 }
 
 const CHACO_URL = 'https://www.cambioschaco.com.py/widgets/cotizacion/?lang=es';
-const MAXI_URL = 'https://www.maxicambios.com.py/share';
 
 // Headers realistas para evitar bloqueos por bot-detection
 const FETCH_HEADERS = {
@@ -43,25 +41,18 @@ async function fetchWithTimeout(url: string, timeoutMs = 8000): Promise<string> 
 }
 
 async function fetchRates(): Promise<PygRatesResponse> {
-  const [chacoResult, maxiResult] = await Promise.allSettled([
-    fetchWithTimeout(CHACO_URL),
-    fetchWithTimeout(MAXI_URL),
-  ]);
-
-  const chaco: ExchangeHouseRate = chacoResult.status === 'fulfilled'
-    ? parseChaco(chacoResult.value)
-    : { compra: null, venta: null, updatedAt: null };
-
-  const maxi: ExchangeHouseRate = maxiResult.status === 'fulfilled'
-    ? parseMaxi(maxiResult.value)
-    : { compra: null, venta: null, updatedAt: null };
+  let chaco: ExchangeHouseRate;
+  try {
+    chaco = parseChaco(await fetchWithTimeout(CHACO_URL));
+  } catch (error) {
+    console.error('[pyg-rates] chaco fetch failed:', error);
+    chaco = { compra: null, venta: null, updatedAt: null };
+  }
 
   // Log para debugging en Vercel
-  console.log('[pyg-rates] chaco:', chaco, '| maxi:', maxi,
-    '| chacoStatus:', chacoResult.status,
-    chacoResult.status === 'rejected' ? chacoResult.reason : '');
+  console.log('[pyg-rates] chaco:', chaco);
 
-  return { chaco, maxi, source: 'scraping', cachedAt: new Date().toISOString() };
+  return { chaco, source: 'scraping', cachedAt: new Date().toISOString() };
 }
 
 export async function GET() {
@@ -83,7 +74,6 @@ export async function GET() {
     return NextResponse.json(
       {
         chaco: { compra: null, venta: null, updatedAt: null },
-        maxi: { compra: null, venta: null, updatedAt: null },
         source: 'scraping',
         cachedAt: new Date().toISOString(),
       },

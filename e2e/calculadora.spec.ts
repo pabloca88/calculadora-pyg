@@ -8,9 +8,9 @@ async function enterAmount(page: Page, amount: string) {
   await page.waitForTimeout(500); // let state settle
 }
 
-// Las tasas ARS (DolarAPI) y las tasas de casas de cambio (scraping Chaco/Maxi)
-// se piden a APIs externas al montar la página. Varios tests dependen de que
-// esos fetches ya hayan resuelto antes de leer resultados.
+// Las tasas ARS (DolarAPI) y la tasa de Cambios Chaco (scraping, única fuente
+// de PYG/USD local) se piden a APIs externas al montar la página. Varios
+// tests dependen de que esos fetches ya hayan resuelto antes de leer resultados.
 async function waitForArsLoaded(page: Page) {
   await expect(page.locator('.ars-status')).toHaveText('LIVE', { timeout: 15000 });
 }
@@ -150,7 +150,7 @@ test('T09 - Cambiar el monto actualiza los resultados', async ({ page }) => {
 // GRUPO 3: TASAS DE CASAS DE CAMBIO (SCRAPING)
 // ════════════════════════════════════════════════════════════════════════════
 
-test('T10 - La API /api/pyg-rates devuelve tasas válidas de Cambios Chaco', async ({ page }) => {
+test('T10 - La API /api/pyg-rates devuelve tasas válidas de Cambios Chaco (única fuente, sin Maxi)', async ({ page }) => {
   const response = await page.request.get('/api/pyg-rates');
   expect(response.status()).toBe(200);
   const data = await response.json();
@@ -158,19 +158,12 @@ test('T10 - La API /api/pyg-rates devuelve tasas válidas de Cambios Chaco', asy
   expect(data.chaco?.compra).toBeGreaterThan(4000);
   expect(data.chaco?.compra).toBeLessThan(8000);
   expect(data.chaco?.venta).toBeGreaterThan(data.chaco?.compra);
+  // Maxicambios se sacó del backend: la respuesta ya no debe traer esa key
+  // (solo queda como iframe de consulta secundaria en la UI).
+  expect(data.maxi).toBeUndefined();
 });
 
-test('T11 - La API /api/pyg-rates devuelve tasas válidas de Maxicambios', async ({ page }) => {
-  // La API sigue scrapeando Maxi (se usa en el iframe de "Ver cotizaciones de
-  // casas de cambio"), aunque Efectivo USD ya no lo use para calcular.
-  const response = await page.request.get('/api/pyg-rates');
-  const data = await response.json();
-  expect(data.maxi?.compra).toBeGreaterThan(4000);
-  expect(data.maxi?.compra).toBeLessThan(8000);
-  expect(data.maxi?.venta).toBeGreaterThan(data.maxi?.compra);
-});
-
-test('T12 - La tasa de scraping NO es la tasa de mercado internacional', async ({ page }) => {
+test('T11 - La tasa de scraping NO es la tasa de mercado internacional', async ({ page }) => {
   const response = await page.request.get('/api/pyg-rates');
   const data = await response.json();
   // Market rate is ~5836, Chaco compra should be significantly different
@@ -185,7 +178,7 @@ test('T12 - La tasa de scraping NO es la tasa de mercado internacional', async (
 // GRUPO 4: CARDS DE MÉTODOS DE PAGO
 // ════════════════════════════════════════════════════════════════════════════
 
-test('T13 - Se muestran exactamente 4 cards de métodos de pago', async ({ page }) => {
+test('T12 - Se muestran exactamente 4 cards de métodos de pago', async ({ page }) => {
   await page.goto('/');
   await enterAmount(page, '100000');
   await page.waitForTimeout(1000);
@@ -193,7 +186,7 @@ test('T13 - Se muestran exactamente 4 cards de métodos de pago', async ({ page 
   await expect(cards).toHaveCount(4);
 });
 
-test('T14 - La card Tarjeta banco argentino muestra Dólar Tarjeta +30%', async ({ page }) => {
+test('T13 - La card Tarjeta banco argentino muestra Dólar Tarjeta +30%', async ({ page }) => {
   await page.goto('/');
   await enterAmount(page, '100000');
   const card = page.locator('.payment-card').first();
@@ -201,7 +194,7 @@ test('T14 - La card Tarjeta banco argentino muestra Dólar Tarjeta +30%', async 
   await expect(card).toContainText(/Tarjeta \+30%|Dólar Tarjeta/i);
 });
 
-test('T15 - La card Efectivo USD usa SOLO la tasa de Cambios Chaco (no Maxi, no mercado)', async ({ page }) => {
+test('T14 - La card Efectivo USD usa SOLO la tasa de Cambios Chaco (no Maxi, no mercado)', async ({ page }) => {
   await page.goto('/');
   await enterAmount(page, '100000');
   await waitForEfectivoRateReady(page);
@@ -238,7 +231,7 @@ test('T15 - La card Efectivo USD usa SOLO la tasa de Cambios Chaco (no Maxi, no 
   }
 });
 
-test('T16 - Badge "⭐ Más barato" aparece en al menos una card', async ({ page }) => {
+test('T15 - Badge "⭐ Más barato" aparece en al menos una card', async ({ page }) => {
   await page.goto('/');
   await waitForArsLoaded(page);
   await enterAmount(page, '100000');
@@ -247,7 +240,7 @@ test('T16 - Badge "⭐ Más barato" aparece en al menos una card', async ({ page
   await expect(badge).toBeVisible();
 });
 
-test('T17 - Cambiar billetera entre ARQ y Payoneer actualiza la card', async ({ page }) => {
+test('T16 - Cambiar billetera entre ARQ y Payoneer actualiza la card', async ({ page }) => {
   await page.goto('/');
   await enterAmount(page, '100000');
   // Get current wallet card value (3ra card: tarjeta banco, Mercado Pago, [billetera])
@@ -269,7 +262,7 @@ test('T17 - Cambiar billetera entre ARQ y Payoneer actualiza la card', async ({ 
 // GRUPO 5: TASA PERSONALIZADA Y CALIBRACIÓN
 // ════════════════════════════════════════════════════════════════════════════
 
-test('T18 - La tasa personalizada modifica el resultado cuando se ingresa', async ({ page }) => {
+test('T17 - La tasa personalizada modifica el resultado cuando se ingresa', async ({ page }) => {
   await page.goto('/');
   await waitForArsLoaded(page);
   await enterAmount(page, '100000');
@@ -292,7 +285,7 @@ test('T18 - La tasa personalizada modifica el resultado cuando se ingresa', asyn
   expect(text).toMatch(/AR\$/);
 });
 
-test('T19 - El descuento turista -10% es calculado correctamente en el expand', async ({ page }) => {
+test('T18 - El descuento turista -10% es calculado correctamente en el expand', async ({ page }) => {
   await page.goto('/');
   await waitForArsLoaded(page);
   await enterAmount(page, '100000');
@@ -314,7 +307,7 @@ test('T19 - El descuento turista -10% es calculado correctamente en el expand', 
 // GRUPO 6: REGRESIONES CRÍTICAS
 // ════════════════════════════════════════════════════════════════════════════
 
-test('T20 - REGRESIÓN: ₲100.000 efectivo NO muestra 17,13 USD (bug viejo)', async ({ page }) => {
+test('T19 - REGRESIÓN: ₲100.000 efectivo NO muestra 17,13 USD (bug viejo)', async ({ page }) => {
   await page.goto('/');
   await enterAmount(page, '100000');
   await waitForEfectivoRateReady(page);

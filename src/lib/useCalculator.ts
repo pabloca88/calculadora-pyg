@@ -32,18 +32,16 @@ const DEFAULT_ARS_RATES: ARSRates = {
 
 const DEFAULT_HOUSE_RATES: PygExchangeHouseRates = {
   chaco: { compra: null, venta: null, updatedAt: null, source: 'none' },
-  maxi: { compra: null, venta: null, updatedAt: null, source: 'none' },
 };
 
 export const useCalculator = () => {
   const [pygAmount, setPygAmount] = useState('');
   const [rateChaco, setRateChaco] = useState('');
-  const [rateMaxi, setRateMaxi] = useState('');
   const [rateCustom, setRateCustom] = useState('');
   const [selectedFee, setSelectedFee] = useState<number | 'custom'>(0);
   const [feeCustomValue, setFeeCustomValue] = useState('');
   const [selectedWallet, setSelectedWallet] = useState('arq');
-  const [selectedExchange, setSelectedExchange] = useState<'chaco' | 'maxi' | 'custom'>('chaco');
+  const [selectedExchange, setSelectedExchange] = useState<'chaco' | 'custom'>('chaco');
   const [arsRates, setArsRates] = useState<ARSRates>(DEFAULT_ARS_RATES);
   const [arsStatus, setArsStatus] = useState('Cargando...');
   const [isArsLoading, setIsArsLoading] = useState(true);
@@ -56,7 +54,7 @@ export const useCalculator = () => {
   );
   const [showOptionalArs, setShowOptionalArs] = useState(false);
   const [showCustomFee, setShowCustomFee] = useState(false);
-  const [expansions, setExpansions] = useState<Record<string, boolean>>({ chaco: false, maxi: false });
+  const [expansions, setExpansions] = useState<Record<string, boolean>>({ chaco: false });
   const [results, setResults] = useState<Conversion[]>([]);
   const [showEmptyState, setShowEmptyState] = useState(true);
   const [isError, setIsError] = useState(false);
@@ -67,7 +65,6 @@ export const useCalculator = () => {
 
     if (saved.amount) setPygAmount(saved.amount.toLocaleString('es-PY'));
     if (saved.rateChaco) setRateChaco(saved.rateChaco.toLocaleString('es-PY'));
-    if (saved.rateMaxi) setRateMaxi(saved.rateMaxi.toLocaleString('es-PY'));
     if (saved.customRate) setRateCustom(saved.customRate.toLocaleString('es-PY'));
     if (saved.selectedFee !== undefined) {
       if (saved.selectedFee === 'custom') {
@@ -141,25 +138,23 @@ export const useCalculator = () => {
     const conversions = calculateConversions(
       pygAmount,
       rateChaco,
-      rateMaxi,
       rateCustom,
       '',
       arsRates,
       selectedFee
     );
     setResults(conversions);
-    setShowEmptyState(!hasValidInputs(pygAmount, rateChaco, rateMaxi, rateCustom));
+    setShowEmptyState(!hasValidInputs(pygAmount, rateChaco, rateCustom));
     saveCalculatorData({
       amount: parseNumber(pygAmount),
       rateChaco: parseNumber(rateChaco),
-      rateMaxi: parseNumber(rateMaxi),
       customRate: parseNumber(rateCustom),
       selectedFee,
       customFeeValue: feeCustomValue,
       selectedWallet,
       selectedExchange,
     });
-  }, [pygAmount, rateChaco, rateMaxi, rateCustom, arsRates, selectedFee, feeCustomValue, selectedWallet, selectedExchange]);
+  }, [pygAmount, rateChaco, rateCustom, arsRates, selectedFee, feeCustomValue, selectedWallet, selectedExchange]);
 
   useEffect(() => {
     loadSavedData();
@@ -203,8 +198,6 @@ export const useCalculator = () => {
     setPygAmount,
     rateChaco,
     setRateChaco,
-    rateMaxi,
-    setRateMaxi,
     rateCustom,
     setRateCustom,
     selectedFee,

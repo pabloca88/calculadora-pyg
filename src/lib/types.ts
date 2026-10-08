@@ -24,16 +24,15 @@ export interface Conversion {
 export interface SavedCalculatorData {
   amount: number;
   rateChaco: number;
-  rateMaxi: number;
   customRate: number;
   selectedFee: number | 'custom';
   customFeeValue: string;
   selectedWallet: string;
-  selectedExchange?: 'chaco' | 'maxi' | 'custom';
+  selectedExchange?: 'chaco' | 'custom';
   lastSave: string;
 }
 
-// Tasa de una casa de cambio paraguaya (Chaco/Maxi), vía scraping o manual
+// Tasa de una casa de cambio paraguaya (Cambios Chaco), vía scraping o manual
 export interface ExchangeHouseRate {
   compra: number | null;
   venta: number | null;
@@ -78,7 +77,6 @@ export interface PaymentMethod {
 export interface CalculatorState {
   pygAmount: string;
   rateChaco: string;
-  rateMaxi: string;
   rateCustom: string;
   selectedFee: number | 'custom';
   feeCustomValue: string;

@@ -91,7 +91,6 @@ describe('getARSStatus', () => {
 describe('fetchPygExchangeHouseRates', () => {
   const mockHouseResponse = {
     chaco: { compra: 5580, venta: 5730, updatedAt: '08/10/2026 17:00' },
-    maxi: { compra: 5500, venta: 5750, updatedAt: null },
     source: 'scraping',
     cachedAt: '2026-10-08T19:00:00.000Z',
   };
@@ -106,8 +105,6 @@ describe('fetchPygExchangeHouseRates', () => {
 
     expect(rates.chaco.compra).toBe(5580);
     expect(rates.chaco.source).toBe('api');
-    expect(rates.maxi.compra).toBe(5500);
-    expect(rates.maxi.source).toBe('api');
   });
 
   it('falls back to all-null rates when fetch fails and there is no cache', async () => {
@@ -117,15 +114,13 @@ describe('fetchPygExchangeHouseRates', () => {
 
     expect(rates.chaco.compra).toBeNull();
     expect(rates.chaco.source).toBe('none');
-    expect(rates.maxi.compra).toBeNull();
   });
 
-  it('marks a house as source "none" when scraping returned no compra value', async () => {
+  it('marks chaco as source "none" when scraping returned no compra value', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         chaco: { compra: null, venta: null, updatedAt: null },
-        maxi: { compra: 5500, venta: 5750, updatedAt: null },
         source: 'scraping',
         cachedAt: '2026-10-08T19:00:00.000Z',
       }),
@@ -134,6 +129,5 @@ describe('fetchPygExchangeHouseRates', () => {
     const rates = await fetchPygExchangeHouseRates(true);
 
     expect(rates.chaco.source).toBe('none');
-    expect(rates.maxi.source).toBe('api');
   });
 });

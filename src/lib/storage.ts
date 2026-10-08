@@ -19,7 +19,6 @@ export const saveCalculatorData = (data: Partial<SavedCalculatorData>): void => 
     const fullData: SavedCalculatorData = {
       amount: data.amount ?? 0,
       rateChaco: data.rateChaco ?? 0,
-      rateMaxi: data.rateMaxi ?? 0,
       customRate: data.customRate ?? 0,
       selectedFee: data.selectedFee ?? 0,
       customFeeValue: data.customFeeValue ?? '',

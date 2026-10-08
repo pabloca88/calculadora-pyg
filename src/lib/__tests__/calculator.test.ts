@@ -15,84 +15,76 @@ const fullRates: ARSRates = { oficial: 1000, tarjeta: 1300, mep: 1250, cripto: 1
 
 describe('calculateConversions', () => {
   it('returns empty array when amount is zero', () => {
-    expect(calculateConversions('', '6.200', '', '', '', emptyRates, 0)).toHaveLength(0);
-    expect(calculateConversions('0', '6.200', '', '', '', emptyRates, 0)).toHaveLength(0);
+    expect(calculateConversions('', '6.200', '', '', emptyRates, 0)).toHaveLength(0);
+    expect(calculateConversions('0', '6.200', '', '', emptyRates, 0)).toHaveLength(0);
   });
 
   it('returns empty array when no PYG rates are set', () => {
-    expect(calculateConversions('620.000', '', '', '', '', emptyRates, 0)).toHaveLength(0);
+    expect(calculateConversions('620.000', '', '', '', emptyRates, 0)).toHaveLength(0);
   });
 
   it('calculates USD correctly for Cambios Chaco', () => {
-    const results = calculateConversions('620.000', '6.200', '', '', '', emptyRates, 0);
+    const results = calculateConversions('620.000', '6.200', '', '', emptyRates, 0);
     expect(results).toHaveLength(1);
     expect(results[0].source).toBe('Cambios Chaco');
     expect(results[0].usd).toBeCloseTo(100);
     expect(results[0].highlight).toBe(false);
   });
 
-  it('calculates USD correctly for Maxicambios', () => {
-    const results = calculateConversions('620.000', '', '6.200', '', '', emptyRates, 0);
-    expect(results).toHaveLength(1);
-    expect(results[0].source).toBe('Maxicambios');
-    expect(results[0].usd).toBeCloseTo(100);
-  });
-
   it('marks Personalizada conversion as highlight', () => {
-    const results = calculateConversions('620.000', '', '', '6.200', '', emptyRates, 0);
+    const results = calculateConversions('620.000', '', '6.200', '', emptyRates, 0);
     expect(results[0].source).toBe('Personalizada');
     expect(results[0].highlight).toBe(true);
   });
 
-  it('returns all three conversions when all rates provided', () => {
-    const results = calculateConversions('620.000', '6.200', '6.300', '6.100', '', emptyRates, 0);
-    expect(results).toHaveLength(3);
+  it('returns both conversions when Chaco and tasa personalizada are provided', () => {
+    const results = calculateConversions('620.000', '6.200', '6.100', '', emptyRates, 0);
+    expect(results).toHaveLength(2);
   });
 
   it('calculates ARS tarjeta when tarjeta rate is available', () => {
-    const results = calculateConversions('620.000', '6.200', '', '', '', fullRates, 0);
+    const results = calculateConversions('620.000', '6.200', '', '', fullRates, 0);
     expect(results[0].arsRates.tarjeta).toBeCloseTo(130000);
   });
 
   it('calculates ARS oficial when oficial rate is available', () => {
-    const results = calculateConversions('620.000', '6.200', '', '', '', fullRates, 0);
+    const results = calculateConversions('620.000', '6.200', '', '', fullRates, 0);
     expect(results[0].arsRates.oficial).toBeCloseTo(100000);
   });
 
   it('calculates ARS custom wallet from custom ARS rate', () => {
-    const results = calculateConversions('620.000', '6.200', '', '', '1300', emptyRates, 0);
+    const results = calculateConversions('620.000', '6.200', '', '1300', emptyRates, 0);
     expect(results[0].arsRates.custom).toBeCloseTo(130000);
   });
 
   it('calculates ARS custom wallet + fee', () => {
-    const results = calculateConversions('620.000', '6.200', '', '', '1300', emptyRates, 3);
+    const results = calculateConversions('620.000', '6.200', '', '1300', emptyRates, 3);
     expect(results[0].arsRates.customWithFee).toBeCloseTo(133900);
   });
 
   it('sets customWithFee to null when selectedFee is 0', () => {
-    const results = calculateConversions('620.000', '6.200', '', '', '1300', emptyRates, 0);
+    const results = calculateConversions('620.000', '6.200', '', '1300', emptyRates, 0);
     expect(results[0].arsRates.customWithFee).toBeNull();
   });
 
   it('sets customWithFee to null when selectedFee is "custom"', () => {
-    const results = calculateConversions('620.000', '6.200', '', '', '1300', emptyRates, 'custom');
+    const results = calculateConversions('620.000', '6.200', '', '1300', emptyRates, 'custom');
     expect(results[0].arsRates.customWithFee).toBeNull();
   });
 });
 
 describe('hasValidInputs', () => {
   it('returns false when amount is empty', () => {
-    expect(hasValidInputs('', '6.200', '', '')).toBe(false);
+    expect(hasValidInputs('', '6.200', '')).toBe(false);
   });
 
   it('returns false when all rates are empty', () => {
-    expect(hasValidInputs('620.000', '', '', '')).toBe(false);
+    expect(hasValidInputs('620.000', '', '')).toBe(false);
   });
 
   it('returns true with amount and at least one rate', () => {
-    expect(hasValidInputs('620.000', '6.200', '', '')).toBe(true);
-    expect(hasValidInputs('620.000', '', '6.300', '')).toBe(true);
-    expect(hasValidInputs('620.000', '', '', '6.100')).toBe(true);
+    expect(hasValidInputs('620.000', '6.200', '')).toBe(true);
+    expect(hasValidInputs('620.000', '', '6.100')).toBe(true);
   });
 });
 

@@ -23,7 +23,6 @@ describe('saveCalculatorData / loadCalculatorData', () => {
     saveCalculatorData({
       amount: 620000,
       rateChaco: 6200,
-      rateMaxi: 6300,
       customRate: 6100,
       selectedFee: 3,
       customFeeValue: '',
@@ -33,7 +32,6 @@ describe('saveCalculatorData / loadCalculatorData', () => {
     expect(loaded).not.toBeNull();
     expect(loaded!.amount).toBe(620000);
     expect(loaded!.rateChaco).toBe(6200);
-    expect(loaded!.rateMaxi).toBe(6300);
     expect(loaded!.customRate).toBe(6100);
     expect(loaded!.selectedFee).toBe(3);
   });

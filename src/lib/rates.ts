@@ -154,10 +154,12 @@ export async function getPYGtoUSDRate(force = false): Promise<number> {
 
 export interface PygExchangeHouseRates {
   chaco: ExchangeHouseRate;
-  maxi: ExchangeHouseRate;
 }
 
-const PYG_HOUSE_CACHE_KEY = 'pyg_calc_house_rates_cache';
+// _v2: la respuesta de /api/pyg-rates dejó de incluir Maxicambios (ver
+// route.ts) — una key nueva evita que clientes con la caché vieja (que
+// todavía trae `maxi`) sigan leyendo ese formato obsoleto.
+const PYG_HOUSE_CACHE_KEY = 'pyg_calc_house_rates_cache_v2';
 const PYG_HOUSE_CACHE_TTL = 30 * 60 * 1000;
 
 interface PygHouseRatesCache {
@@ -166,8 +168,8 @@ interface PygHouseRatesCache {
 }
 
 /**
- * Fetch de tasas de casas de cambio paraguayas (Cambios Chaco, Maxicambios)
- * vía /api/pyg-rates (scraping), con fallback a caché local de 30 minutos.
+ * Fetch de la tasa de Cambios Chaco (única fuente de PYG/USD local) vía
+ * /api/pyg-rates (scraping), con fallback a caché local de 30 minutos.
  */
 export const fetchPygExchangeHouseRates = async (force = false): Promise<PygExchangeHouseRates> => {
   if (!force && typeof window !== 'undefined') {
@@ -191,7 +193,6 @@ export const fetchPygExchangeHouseRates = async (force = false): Promise<PygExch
     const json = await response.json();
     const data: PygExchangeHouseRates = {
       chaco: { ...json.chaco, source: json.chaco.compra ? 'api' : 'none' },
-      maxi: { ...json.maxi, source: json.maxi.compra ? 'api' : 'none' },
     };
 
     if (typeof window !== 'undefined') {
@@ -217,7 +218,6 @@ export const fetchPygExchangeHouseRates = async (force = false): Promise<PygExch
 
     return {
       chaco: { compra: null, venta: null, updatedAt: null, source: 'none' },
-      maxi: { compra: null, venta: null, updatedAt: null, source: 'none' },
     };
   }
 };

@@ -32,32 +32,3 @@ export const parseChaco = (html: string): ExchangeHouseRate => {
     updatedAt: tsMatch ? tsMatch[1] : null,
   };
 };
-
-/**
- * Parsea la página pública de Maxicambios (Angular SSR).
- * Acota al bloque "cotizacion-carousel" (Asunción efectivo) antes de "cotizacion-cd".
- * HTML real:
- *   Dólar</p>
- *   ...Compra</p> <p ...>5500\n<img ...></p>
- *   ...Venta</p>  <p ...>5750\n<img ...></p>
- */
-export const parseMaxi = (html: string): ExchangeHouseRate => {
-  const tsMatch = html.match(/([\d]{2}\/[\d]{2}\/[\d]{4}\s*-\s*[\d:]+)/);
-
-  const startIdx = html.indexOf('id="cotizacion-carousel"');
-  const endIdx = startIdx >= 0 ? html.indexOf('id="cotizacion-cd"', startIdx) : -1;
-  if (startIdx < 0 || endIdx < 0) {
-    return { compra: null, venta: null, updatedAt: tsMatch ? tsMatch[1].trim() : null };
-  }
-  const section = html.slice(startIdx, endIdx);
-
-  const match = section.match(
-    /Dólar<\/p>[\s\S]{0,500}?Compra<\/p>\s*<p[^>]*>\s*([\d.,]+)[\s\S]{0,1500}?Venta<\/p>\s*<p[^>]*>\s*([\d.,]+)/
-  );
-
-  return {
-    compra: match ? parseGsNumber(match[1]) : null,
-    venta: match ? parseGsNumber(match[2]) : null,
-    updatedAt: tsMatch ? tsMatch[1].trim() : null,
-  };
-};

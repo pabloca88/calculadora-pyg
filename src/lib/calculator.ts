@@ -7,7 +7,6 @@ import { parseNumber, parseDecimal } from './format';
 export const calculateConversions = (
   pygAmount: string,
   rateChaco: string,
-  rateMaxi: string,
   rateCustom: string,
   rateArsCustom: string,
   arsRates: ARSRates,
@@ -28,26 +27,6 @@ export const calculateConversions = (
     const usd = amount / chacoRateVal;
     conversions.push({
       source: 'Cambios Chaco',
-      usd,
-      arsRates: {
-        oficial: arsRates.oficial ? usd * arsRates.oficial : null,
-        tarjeta: arsRates.tarjeta ? usd * arsRates.tarjeta : null,
-        custom: customArsRate ? usd * customArsRate : null,
-        customWithFee:
-          customArsRate && typeof selectedFee === 'number' && selectedFee > 0
-            ? usd * customArsRate * (1 + selectedFee / 100)
-            : null,
-      },
-      highlight: false,
-    });
-  }
-
-  // Conversión Maxicambios
-  const maxiRateVal = parseNumber(rateMaxi);
-  if (maxiRateVal && maxiRateVal > 0) {
-    const usd = amount / maxiRateVal;
-    conversions.push({
-      source: 'Maxicambios',
       usd,
       arsRates: {
         oficial: arsRates.oficial ? usd * arsRates.oficial : null,
@@ -91,15 +70,13 @@ export const calculateConversions = (
 export const hasValidInputs = (
   pygAmount: string,
   rateChaco: string,
-  rateMaxi: string,
   rateCustom: string
 ): boolean => {
   const amount = parseNumber(pygAmount);
   const chaco = parseNumber(rateChaco);
-  const maxi = parseNumber(rateMaxi);
   const custom = parseNumber(rateCustom);
 
-  return amount > 0 && (chaco > 0 || maxi > 0 || custom > 0);
+  return amount > 0 && (chaco > 0 || custom > 0);
 };
 
 export const PAYMENT_METHODS_AR: PaymentMethod[] = [
