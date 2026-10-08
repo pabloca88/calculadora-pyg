@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchARSRates, getARSStatus } from '../rates';
+import { fetchARSRates, getARSStatus, fetchPygExchangeHouseRates } from '../rates';
 import * as storage from '../storage';
 
 beforeEach(() => {
@@ -85,5 +85,55 @@ describe('getARSStatus', () => {
 
   it('returns "LIVE" on success', () => {
     expect(getARSStatus(false, false)).toBe('LIVE');
+  });
+});
+
+describe('fetchPygExchangeHouseRates', () => {
+  const mockHouseResponse = {
+    chaco: { compra: 5580, venta: 5730, updatedAt: '08/10/2026 17:00' },
+    maxi: { compra: 5500, venta: 5750, updatedAt: null },
+    source: 'scraping',
+    cachedAt: '2026-10-08T19:00:00.000Z',
+  };
+
+  it('returns parsed rates from /api/pyg-rates on success, tagged as api source', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockHouseResponse,
+    }));
+
+    const rates = await fetchPygExchangeHouseRates(true);
+
+    expect(rates.chaco.compra).toBe(5580);
+    expect(rates.chaco.source).toBe('api');
+    expect(rates.maxi.compra).toBe(5500);
+    expect(rates.maxi.source).toBe('api');
+  });
+
+  it('falls back to all-null rates when fetch fails and there is no cache', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')));
+
+    const rates = await fetchPygExchangeHouseRates(true);
+
+    expect(rates.chaco.compra).toBeNull();
+    expect(rates.chaco.source).toBe('none');
+    expect(rates.maxi.compra).toBeNull();
+  });
+
+  it('marks a house as source "none" when scraping returned no compra value', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        chaco: { compra: null, venta: null, updatedAt: null },
+        maxi: { compra: 5500, venta: 5750, updatedAt: null },
+        source: 'scraping',
+        cachedAt: '2026-10-08T19:00:00.000Z',
+      }),
+    }));
+
+    const rates = await fetchPygExchangeHouseRates(true);
+
+    expect(rates.chaco.source).toBe('none');
+    expect(rates.maxi.source).toBe('api');
   });
 });

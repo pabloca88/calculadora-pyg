@@ -1,9 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { ARSRates, Conversion } from './types';
-import { loadCalculatorData, saveCalculatorData, loadARSCache } from './storage';
-import { fetchARSRates, getARSStatus, getPYGtoUSDRate, getCachedPygRate } from './rates';
+import type { ARSRates, Conversion, EffectiveRate } from './types';
+import {
+  loadCalculatorData,
+  saveCalculatorData,
+  loadARSCache,
+  loadEffectiveDollarAppRate,
+  saveEffectiveDollarAppRate,
+} from './storage';
+import {
+  fetchARSRates,
+  getARSStatus,
+  getPYGtoUSDRate,
+  getCachedPygRate,
+  fetchPygExchangeHouseRates,
+  type PygExchangeHouseRates,
+} from './rates';
 import { calculateConversions, hasValidInputs } from './calculator';
 import { parseNumber } from './format';
 
@@ -15,6 +28,11 @@ const DEFAULT_ARS_RATES: ARSRates = {
   mep: null,
   cripto: null,
   custom: null,
+};
+
+const DEFAULT_HOUSE_RATES: PygExchangeHouseRates = {
+  chaco: { compra: null, venta: null, updatedAt: null, source: 'none' },
+  maxi: { compra: null, venta: null, updatedAt: null, source: 'none' },
 };
 
 export const useCalculator = () => {
@@ -31,6 +49,11 @@ export const useCalculator = () => {
   const [isArsLoading, setIsArsLoading] = useState(true);
   const [pygUsdRate, setPygUsdRate] = useState(6100);
   const [pygRateStatus, setPygRateStatus] = useState<PygRateStatus>('fallback');
+  const [pygHouseRates, setPygHouseRates] = useState<PygExchangeHouseRates>(DEFAULT_HOUSE_RATES);
+  const [isHouseRatesLoading, setIsHouseRatesLoading] = useState(true);
+  const [effectiveDollarAppRate, setEffectiveDollarAppRate] = useState<EffectiveRate>(
+    { rate: 5991.05, measuredAt: '2026-07-28' }
+  );
   const [showOptionalArs, setShowOptionalArs] = useState(false);
   const [showCustomFee, setShowCustomFee] = useState(false);
   const [expansions, setExpansions] = useState<Record<string, boolean>>({ chaco: false, maxi: false });
@@ -57,6 +80,25 @@ export const useCalculator = () => {
     }
     if (saved.selectedWallet) setSelectedWallet(saved.selectedWallet);
     if (saved.selectedExchange) setSelectedExchange(saved.selectedExchange);
+
+    setEffectiveDollarAppRate(loadEffectiveDollarAppRate());
+  }, []);
+
+  const fetchHouseRates = useCallback(async (force = false) => {
+    setIsHouseRatesLoading(true);
+    const data = await fetchPygExchangeHouseRates(force);
+    setPygHouseRates(data);
+    setIsHouseRatesLoading(false);
+  }, []);
+
+  const calibrateDollarAppRate = useCallback((pygPaid: number, usdDebited: number) => {
+    if (!pygPaid || !usdDebited || pygPaid <= 0 || usdDebited <= 0) return;
+    const rate: EffectiveRate = {
+      rate: pygPaid / usdDebited,
+      measuredAt: new Date().toISOString().slice(0, 10),
+    };
+    saveEffectiveDollarAppRate(rate);
+    setEffectiveDollarAppRate(rate);
   }, []);
 
   const fetchRates = useCallback(async () => {
@@ -133,6 +175,12 @@ export const useCalculator = () => {
   }, [fetchPygRate]);
 
   useEffect(() => {
+    fetchHouseRates();
+    const interval = setInterval(() => fetchHouseRates(), 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchHouseRates]);
+
+  useEffect(() => {
     calculate();
   }, [calculate]);
 
@@ -167,6 +215,11 @@ export const useCalculator = () => {
     pygUsdRate,
     pygRateStatus,
     fetchPygRate,
+    pygHouseRates,
+    isHouseRatesLoading,
+    fetchHouseRates,
+    effectiveDollarAppRate,
+    calibrateDollarAppRate,
     showOptionalArs,
     setShowOptionalArs,
     showCustomFee,

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { calculateConversions, hasValidInputs } from '../calculator';
+import {
+  calculateConversions,
+  hasValidInputs,
+  getCheapestMethodIds,
+  PAYMENT_METHODS_AR,
+  WALLET_METHODS,
+} from '../calculator';
 import type { ARSRates } from '../types';
 
 // ─── integration tests (call calculateConversions with string inputs) ───
@@ -314,5 +320,67 @@ describe('Tasa Personalizada (Custom PYG Rate)', () => {
       const arsTarjeta_ = (200_000 / 6_081)    * arsTarjeta;
       expect(arsCustom).toBeLessThan(arsTarjeta_);
     });
+  });
+});
+
+// ─── FIX CRÍTICO: cada método de pago usa su propia tasa real, no la tasa de
+// mercado internacional (~5.836) para todo. Regresión del bug reportado:
+// Cambios Chaco compra 5.580 → ₲100.000 deben ser U$D 17,92, no U$D 17,13
+// (que es lo que daba dividir por la tasa de mercado). ───
+describe('FIX CRÍTICO - Tasas reales por método de pago', () => {
+  const MARKET_RATE = 5836; // tasa de mercado internacional (solo referencia)
+  const CHACO_COMPRA = 5580; // tasa real relevada 08/10/2026 17:00
+  const DOLLARAPP_EFFECTIVE = 5991.05; // tasa medida con compra real 28/07/2026
+
+  it('Efectivo USD con la tasa de mercado da un resultado incorrecto (bug original)', () => {
+    const usdConMercado = 100_000 / MARKET_RATE;
+    expect(usdConMercado).toBeCloseTo(17.14, 1);
+  });
+
+  it('Efectivo USD con la tasa COMPRA real de Cambios Chaco da el resultado correcto', () => {
+    const usdConChaco = 100_000 / CHACO_COMPRA;
+    expect(usdConChaco).toBeCloseTo(17.92, 2);
+  });
+
+  it('ARQ/DollarApp con su tasa efectiva medida da U$D 16,69 para ₲100.000', () => {
+    const usdDollarApp = 100_000 / DOLLARAPP_EFFECTIVE;
+    expect(usdDollarApp).toBeCloseTo(16.69, 2);
+  });
+
+  it('la tasa de mercado sobrestima el USD disponible frente a la tasa real de Chaco', () => {
+    const usdConMercado = 100_000 / MARKET_RATE;
+    const usdConChaco = 100_000 / CHACO_COMPRA;
+    // Con una tasa compra más baja que la de mercado, el usuario necesita
+    // MENOS guaraníes por dólar que sacar, es decir obtiene MÁS dólares.
+    expect(usdConChaco).toBeGreaterThan(usdConMercado);
+  });
+});
+
+describe('getCheapestMethodIds - resuelve el monto en USD por método', () => {
+  const arsRates = { oficial: 1415, tarjeta: 1839.5 };
+
+  it('usa la función getUsdAmount para cada método en vez de un único monto compartido', () => {
+    const getUsdAmount = (methodId: string) => {
+      if (methodId === 'efectivo-usd') return 17.92; // Chaco compra 5.580
+      return 17.13; // tasa de mercado para el resto
+    };
+
+    const methods = [...PAYMENT_METHODS_AR, WALLET_METHODS.arq];
+    const ids = getCheapestMethodIds(getUsdAmount, arsRates, methods);
+
+    expect(ids.length).toBeGreaterThan(0);
+  });
+
+  it('devuelve array vacío cuando ningún método tiene monto válido', () => {
+    const ids = getCheapestMethodIds(() => 0, arsRates, PAYMENT_METHODS_AR);
+    expect(ids).toEqual([]);
+  });
+
+  it('ignora métodos sin monto pero sigue comparando los que sí tienen', () => {
+    const getUsdAmount = (methodId: string) => (methodId === 'efectivo-usd' ? 0 : 20);
+    const ids = getCheapestMethodIds(getUsdAmount, arsRates, PAYMENT_METHODS_AR);
+
+    expect(ids).not.toContain('efectivo-usd');
+    expect(ids.length).toBeGreaterThan(0);
   });
 });

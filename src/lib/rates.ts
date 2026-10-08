@@ -1,4 +1,4 @@
-import type { ARSRates, DolarAPIResponse } from './types';
+import type { ARSRates, DolarAPIResponse, ExchangeHouseRate } from './types';
 import { saveARSCache, loadARSCache } from './storage';
 
 const DOLAR_API_URL = 'https://dolarapi.com/v1/dolares';
@@ -151,3 +151,73 @@ export async function getPYGtoUSDRate(force = false): Promise<number> {
 
   return 6100;
 }
+
+export interface PygExchangeHouseRates {
+  chaco: ExchangeHouseRate;
+  maxi: ExchangeHouseRate;
+}
+
+const PYG_HOUSE_CACHE_KEY = 'pyg_calc_house_rates_cache';
+const PYG_HOUSE_CACHE_TTL = 30 * 60 * 1000;
+
+interface PygHouseRatesCache {
+  data: PygExchangeHouseRates;
+  timestamp: number;
+}
+
+/**
+ * Fetch de tasas de casas de cambio paraguayas (Cambios Chaco, Maxicambios)
+ * vía /api/pyg-rates (scraping), con fallback a caché local de 30 minutos.
+ */
+export const fetchPygExchangeHouseRates = async (force = false): Promise<PygExchangeHouseRates> => {
+  if (!force && typeof window !== 'undefined') {
+    const cached = localStorage.getItem(PYG_HOUSE_CACHE_KEY);
+    if (cached) {
+      try {
+        const { data, timestamp }: PygHouseRatesCache = JSON.parse(cached);
+        if (Date.now() - timestamp < PYG_HOUSE_CACHE_TTL) return data;
+      } catch {
+        // sigue al fetch
+      }
+    }
+  }
+
+  try {
+    const response = await fetch('/api/pyg-rates');
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const json = await response.json();
+    const data: PygExchangeHouseRates = {
+      chaco: { ...json.chaco, source: json.chaco.compra ? 'api' : 'none' },
+      maxi: { ...json.maxi, source: json.maxi.compra ? 'api' : 'none' },
+    };
+
+    if (typeof window !== 'undefined') {
+      const cache: PygHouseRatesCache = { data, timestamp: Date.now() };
+      localStorage.setItem(PYG_HOUSE_CACHE_KEY, JSON.stringify(cache));
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching PYG exchange house rates:', error);
+
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem(PYG_HOUSE_CACHE_KEY);
+      if (cached) {
+        try {
+          const { data }: PygHouseRatesCache = JSON.parse(cached);
+          return data;
+        } catch {
+          // sigue al fallback final
+        }
+      }
+    }
+
+    return {
+      chaco: { compra: null, venta: null, updatedAt: null, source: 'none' },
+      maxi: { compra: null, venta: null, updatedAt: null, source: 'none' },
+    };
+  }
+};

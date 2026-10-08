@@ -730,6 +730,18 @@ label {
   }
 }
 
+.calib-section {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.calib-section .pyg-auto-custom-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* ── Exchange selector ── */
 .exchange-options {
   display: flex;

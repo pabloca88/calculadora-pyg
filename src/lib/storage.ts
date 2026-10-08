@@ -1,7 +1,15 @@
-import type { ARSRates, SavedCalculatorData, CachedARSData } from './types';
+import type { ARSRates, SavedCalculatorData, CachedARSData, EffectiveRate } from './types';
 
 const STORAGE_KEY = 'pyg_calc_v7';
 const STORAGE_KEY_ARS = 'pyg_calc_v7_ars';
+const STORAGE_KEY_EFFECTIVE_DOLLARAPP = 'pyg_calc_effective_dollarapp';
+
+// Tasa por defecto medida con una compra real en DollarApp (28/07/2026).
+// Se usa hasta que el usuario calibre una medición propia más reciente.
+const DEFAULT_EFFECTIVE_DOLLARAPP: EffectiveRate = {
+  rate: 5991.05,
+  measuredAt: '2026-07-28',
+};
 
 /**
  * Guarda datos de la calculadora en localStorage
@@ -71,12 +79,38 @@ export const loadARSCache = (): ARSRates | null => {
 };
 
 /**
+ * Guarda la tasa efectiva de DollarApp medida con una compra real
+ */
+export const saveEffectiveDollarAppRate = (rate: EffectiveRate): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY_EFFECTIVE_DOLLARAPP, JSON.stringify(rate));
+  } catch (e) {
+    console.error('Error saving effective DollarApp rate:', e);
+  }
+};
+
+/**
+ * Carga la tasa efectiva de DollarApp, o el valor de calibración por defecto
+ * si el usuario todavía no registró una medición propia
+ */
+export const loadEffectiveDollarAppRate = (): EffectiveRate => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_EFFECTIVE_DOLLARAPP);
+    return saved ? JSON.parse(saved) : DEFAULT_EFFECTIVE_DOLLARAPP;
+  } catch (e) {
+    console.error('Error loading effective DollarApp rate:', e);
+    return DEFAULT_EFFECTIVE_DOLLARAPP;
+  }
+};
+
+/**
  * Limpia todos los datos guardados (para debugging)
  */
 export const clearStorage = (): void => {
   try {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(STORAGE_KEY_ARS);
+    localStorage.removeItem(STORAGE_KEY_EFFECTIVE_DOLLARAPP);
   } catch (e) {
     console.error('Error clearing storage:', e);
   }

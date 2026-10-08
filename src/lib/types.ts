@@ -33,6 +33,21 @@ export interface SavedCalculatorData {
   lastSave: string;
 }
 
+// Tasa de una casa de cambio paraguaya (Chaco/Maxi), vía scraping o manual
+export interface ExchangeHouseRate {
+  compra: number | null;
+  venta: number | null;
+  updatedAt: string | null;
+  source: 'api' | 'manual' | 'none';
+}
+
+// Tasa efectiva medida con una compra real (ej. DollarApp), para billeteras
+// que no exponen una tasa pública.
+export interface EffectiveRate {
+  rate: number;
+  measuredAt: string; // ISO date 'YYYY-MM-DD'
+}
+
 // Tipo para respuesta de DolarAPI
 export interface DolarAPIResponse {
   casa: string;

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useCalculator } from '@/lib/useCalculator';
-import { formatNumber, formatCurrency, parseNumber } from '@/lib/format';
+import { formatNumber, formatCurrency, parseNumber, parseDecimal } from '@/lib/format';
 import { PAYMENT_METHODS_AR, MERCADO_PAGO_METHOD, WALLET_METHODS, calcPaymentMethod, getCheapestMethodIds } from '@/lib/calculator';
 
 const WALLETS = [
@@ -23,6 +23,10 @@ export default function Page() {
     pygUsdRate,
     pygRateStatus,
     fetchPygRate,
+    pygHouseRates,
+    isHouseRatesLoading,
+    effectiveDollarAppRate,
+    calibrateDollarAppRate,
     showOptionalArs,
     setShowOptionalArs,
     expansions,
@@ -39,20 +43,46 @@ export default function Page() {
     setIsRefreshingPyg(false);
   };
 
-  // Casas de cambio de referencia (Fase 3)
+  // Casas de cambio de referencia (Fase 3) — el usuario puede sobreescribir
+  // manualmente el valor "Compra USD" traído por scraping desde /api/pyg-rates
   const [chacoRateInput, setChacoRateInput] = useState('');
   const [maxiRateInput, setMaxiRateInput] = useState('');
+  const [chacoManualOverride, setChacoManualOverride] = useState(false);
+  const [maxiManualOverride, setMaxiManualOverride] = useState(false);
+  const [showCalibForm, setShowCalibForm] = useState(false);
+  const [calibGs, setCalibGs] = useState('');
+  const [calibUsd, setCalibUsd] = useState('');
 
   useEffect(() => {
     const chaco = localStorage.getItem('chaco_rate');
     const maxi = localStorage.getItem('maxi_rate');
-    if (chaco) setChacoRateInput(chaco);
-    if (maxi) setMaxiRateInput(maxi);
+    if (chaco) {
+      setChacoRateInput(chaco);
+      setChacoManualOverride(true);
+    }
+    if (maxi) {
+      setMaxiRateInput(maxi);
+      setMaxiManualOverride(true);
+    }
   }, []);
+
+  // Autocompleta con el valor scrapeado mientras el usuario no haya tipeado el suyo
+  useEffect(() => {
+    if (!chacoManualOverride && pygHouseRates.chaco.compra) {
+      setChacoRateInput(pygHouseRates.chaco.compra.toLocaleString('es-PY'));
+    }
+  }, [chacoManualOverride, pygHouseRates.chaco.compra]);
+
+  useEffect(() => {
+    if (!maxiManualOverride && pygHouseRates.maxi.compra) {
+      setMaxiRateInput(pygHouseRates.maxi.compra.toLocaleString('es-PY'));
+    }
+  }, [maxiManualOverride, pygHouseRates.maxi.compra]);
 
   const handleChacoRateChange = (value: string) => {
     const formatted = formatNumber(value);
     setChacoRateInput(formatted);
+    setChacoManualOverride(!!formatted);
     if (formatted) localStorage.setItem('chaco_rate', formatted);
     else localStorage.removeItem('chaco_rate');
   };
@@ -60,6 +90,7 @@ export default function Page() {
   const handleMaxiRateChange = (value: string) => {
     const formatted = formatNumber(value);
     setMaxiRateInput(formatted);
+    setMaxiManualOverride(!!formatted);
     if (formatted) localStorage.setItem('maxi_rate', formatted);
     else localStorage.removeItem('maxi_rate');
   };
@@ -70,7 +101,11 @@ export default function Page() {
   const pygAmountRaw = parseNumber(pygAmount);
   const hasTouristDiscount = pygAmountRaw > 0;
 
-  // Conversión automática PYG → USD vía API (Fase 1)
+  // Conversión de referencia PYG → USD vía tasa de mercado internacional.
+  // Solo es una aproximación razonable para pagos que procesa la red
+  // Visa/Mastercard (tarjeta banco, Mercado Pago, Payoneer), porque esas
+  // redes usan una tasa cercana a la interbancaria. NO es la tasa real de
+  // Paraguay — Efectivo USD y ARQ/DollarApp usan tasas locales reales abajo.
   const usdAmount = pygAmountRaw > 0 && pygUsdRate > 0 ? pygAmountRaw / pygUsdRate : 0;
   const hasAmount = usdAmount > 0;
 
@@ -82,6 +117,35 @@ export default function Page() {
   const customUsdAmount = hasAmount && customPygRateVal > 0 ? pygAmountRaw / customPygRateVal : 0;
   const customPygARS = customUsdAmount > 0 && arsRates.oficial ? customUsdAmount * arsRates.oficial : null;
 
+  // Efectivo USD: el usuario vende sus dólares físicos a una casa de cambio
+  // paraguaya, que le paga su tasa COMPRA (no la venta, no el mercado).
+  // Usamos la más alta entre Cambios Chaco y Maxicambios (scrapeada o
+  // ingresada a mano), que es la que le conviene más al usuario.
+  const chacoCompra = parseNumber(chacoRateInput) || null;
+  const maxiCompra = parseNumber(maxiRateInput) || null;
+  const bestExchangeCompra =
+    chacoCompra && maxiCompra ? Math.max(chacoCompra, maxiCompra) : chacoCompra || maxiCompra || null;
+  const bestExchangeSource: 'chaco' | 'maxi' | null =
+    !bestExchangeCompra ? null : maxiCompra === bestExchangeCompra && maxiCompra !== chacoCompra ? 'maxi' : 'chaco';
+  const usdAmountEfectivo =
+    pygAmountRaw > 0 && bestExchangeCompra ? pygAmountRaw / bestExchangeCompra : 0;
+
+  // ARQ / DollarApp: tasa efectiva medida con una compra real (calibrable al
+  // pie de la billetera virtual), no la tasa de mercado.
+  const usdAmountArq =
+    pygAmountRaw > 0 && effectiveDollarAppRate.rate > 0
+      ? pygAmountRaw / effectiveDollarAppRate.rate
+      : 0;
+  const dollarAppDaysOld = Math.floor(
+    (Date.now() - new Date(effectiveDollarAppRate.measuredAt).getTime()) / 86_400_000
+  );
+
+  const getUsdAmountForMethod = (methodId: string): number => {
+    if (methodId === 'efectivo-usd') return usdAmountEfectivo;
+    if (methodId === 'arq-dolarapp') return usdAmountArq;
+    return usdAmount;
+  };
+
   // Métodos de pago argentinos (Fase 2) — orden fijo: Tarjeta banco, Mercado Pago, [billetera elegida], Efectivo USD
   const arsRatesForPayment = arsRates.oficial && arsRates.tarjeta
     ? { oficial: arsRates.oficial, tarjeta: arsRates.tarjeta }
@@ -91,21 +155,32 @@ export default function Page() {
   const walletMethod = WALLET_METHODS[selectedWallet === 'payoneer' ? 'payoneer' : 'arq'];
   const paymentCards = [tarjetaBancoMethod, MERCADO_PAGO_METHOD, walletMethod, efectivoUsdMethod];
   const cheapestIds = hasAmount && arsRatesForPayment
-    ? getCheapestMethodIds(usdAmount, arsRatesForPayment, paymentCards)
+    ? getCheapestMethodIds(getUsdAmountForMethod, arsRatesForPayment, paymentCards)
     : [];
 
   const renderEfectivoUsdRates = () => {
-    if (!chacoRateInput && !maxiRateInput) {
+    if (!bestExchangeCompra) {
       return (
         <div className="conv-expand-row">
-          <span className="conv-expand-label">Consultá tasas al pie ↓</span>
+          <span className="conv-expand-label">
+            ⚠️ Ingresá la tasa compra de Cambios Chaco o Maxicambios al pie para calcular
+          </span>
         </div>
       );
     }
+    const sourceLabel = bestExchangeSource === 'chaco' ? 'Cambios Chaco' : 'Maxicambios';
+    const sourceBadge =
+      bestExchangeSource === 'chaco'
+        ? chacoManualOverride ? 'manual' : 'API'
+        : maxiManualOverride ? 'manual' : 'API';
+    const updatedAt = bestExchangeSource === 'chaco' ? pygHouseRates.chaco.updatedAt : null;
     return (
       <>
         <div className="conv-expand-row">
-          <span className="conv-expand-label">Gastarías comprando guaraníes en:</span>
+          <span className="conv-expand-label">
+            Tasa: {sourceLabel} compra ₲{bestExchangeCompra.toLocaleString('es-PY')}
+            {' '}({sourceBadge}{updatedAt ? ` · ${updatedAt}` : ''})
+          </span>
         </div>
         {chacoRateInput && (
           <div className="conv-expand-row">
@@ -246,6 +321,61 @@ export default function Page() {
             </select>
           </div>
 
+          {selectedWallet === 'arq' && (
+            <div className="calib-section">
+              <div className="conv-expand-label">
+                Tasa DollarApp: ₲{effectiveDollarAppRate.rate.toLocaleString('es-PY', { maximumFractionDigits: 2 })}/USD
+                {' '}(medida {effectiveDollarAppRate.measuredAt})
+                {dollarAppDaysOld > 7 && ' 🟡 puede estar desactualizada'}
+              </div>
+              <button
+                type="button"
+                className="pyg-auto-custom-toggle"
+                onClick={() => setShowCalibForm(!showCalibForm)}
+              >
+                {showCalibForm ? 'Registrar compra real ▲' : '📊 Registrar compra real ▼'}
+              </button>
+              {showCalibForm && (
+                <div className="pyg-auto-custom-input">
+                  <div className="input-wrapper">
+                    <span className="currency-symbol">₲</span>
+                    <input
+                      type="text"
+                      className="rate-input"
+                      placeholder="Monto pagado en Gs"
+                      inputMode="numeric"
+                      value={calibGs}
+                      onChange={(e) => setCalibGs(formatNumber(e.target.value))}
+                    />
+                  </div>
+                  <div className="input-wrapper">
+                    <span className="currency-symbol">U$D</span>
+                    <input
+                      type="text"
+                      className="rate-input"
+                      placeholder="USD debitados en la app"
+                      inputMode="decimal"
+                      value={calibUsd}
+                      onChange={(e) => setCalibUsd(e.target.value.replace(/[^\d,.]/g, ''))}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="pyg-refresh-btn"
+                    onClick={() => {
+                      calibrateDollarAppRate(parseNumber(calibGs), parseDecimal(calibUsd));
+                      setCalibGs('');
+                      setCalibUsd('');
+                      setShowCalibForm(false);
+                    }}
+                  >
+                    Guardar tasa
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="ars-rates-compact">
             <div className="ars-rate-compact-item">
               <div className="ars-rate-compact-label">Oficial</div>
@@ -299,19 +429,25 @@ export default function Page() {
             {paymentCards.map((method) => {
               const isCheapest = cheapestIds.includes(method.id);
               const isMarket = method.rateType === 'market';
+              const methodUsdAmount = getUsdAmountForMethod(method.id);
               const rawValue = isMarket
-                ? usdAmount
-                : arsRatesForPayment
-                  ? calcPaymentMethod(method, usdAmount, arsRatesForPayment)
+                ? (methodUsdAmount || null)
+                : arsRatesForPayment && methodUsdAmount
+                  ? calcPaymentMethod(method, methodUsdAmount, arsRatesForPayment)
                   : null;
               const touristValue = rawValue != null ? rawValue * 0.9 : null;
 
               const feeLabel = method.fee > 0 ? `+${method.fee}%` : '0% comisión';
               const networkFeeLabel = method.network ? `${method.network} · ${feeLabel}` : feeLabel;
               const rateLabel =
-                method.rateType === 'tarjeta' ? 'Dólar Tarjeta +30%' :
-                method.rateType === 'market' ? 'Valor en dólares cash' :
-                method.fee > 0 ? `Tasa Mastercard +${method.fee}%` : 'Tasa interbancaria';
+                method.id === 'efectivo-usd'
+                  ? bestExchangeCompra
+                    ? `${bestExchangeSource === 'chaco' ? 'Chaco' : 'Maxi'} compra ₲${bestExchangeCompra.toLocaleString('es-PY')}`
+                    : 'Falta tasa de cambio ⚠️'
+                  : method.id === 'arq-dolarapp'
+                    ? `₲${effectiveDollarAppRate.rate.toLocaleString('es-PY', { maximumFractionDigits: 2 })}/USD (medida ${effectiveDollarAppRate.measuredAt.slice(5).split('-').reverse().join('/')})${dollarAppDaysOld > 7 ? ' 🟡' : ''}`
+                    : method.rateType === 'tarjeta' ? 'Dólar Tarjeta +30%' :
+                      method.fee > 0 ? `Tasa Mastercard +${method.fee}%` : 'Tasa interbancaria';
 
               const mainValueDisplay = isMarket
                 ? `U$D ${formatCurrency(rawValue)}`
@@ -372,19 +508,22 @@ export default function Page() {
 
               <div>
                 <div className="casa-cambio-market-rate">
-                  Tasa de mercado hoy: ₲{pygUsdRate.toLocaleString('es-PY', { maximumFractionDigits: 2 })} / USD
+                  Tasa de mercado (referencia, no usada en Efectivo USD): ₲
+                  {pygUsdRate.toLocaleString('es-PY', { maximumFractionDigits: 2 })} / USD
                 </div>
-                <div className="casa-cambio-market-rate">🟢 Actualizada automáticamente</div>
               </div>
 
               <div className="casa-cambio-input-row">
-                <span className="casa-cambio-input-label">Cambios Chaco</span>
+                <span className="casa-cambio-input-label">
+                  Cambios Chaco{!chacoManualOverride && pygHouseRates.chaco.compra ? ' 🟢 auto' : ''}
+                  {pygHouseRates.chaco.updatedAt ? ` (${pygHouseRates.chaco.updatedAt})` : ''}
+                </span>
                 <div className="input-wrapper">
                   <span className="currency-symbol">₲</span>
                   <input
                     type="text"
                     className="rate-input"
-                    placeholder="6.200"
+                    placeholder={isHouseRatesLoading ? 'Cargando...' : '5.580'}
                     inputMode="numeric"
                     value={chacoRateInput}
                     onChange={(e) => handleChacoRateChange(e.target.value)}
@@ -392,13 +531,15 @@ export default function Page() {
                 </div>
               </div>
               <div className="casa-cambio-input-row">
-                <span className="casa-cambio-input-label">Maxicambios</span>
+                <span className="casa-cambio-input-label">
+                  Maxicambios{!maxiManualOverride && pygHouseRates.maxi.compra ? ' 🟢 auto' : ''}
+                </span>
                 <div className="input-wrapper">
                   <span className="currency-symbol">₲</span>
                   <input
                     type="text"
                     className="rate-input"
-                    placeholder="6.200"
+                    placeholder={isHouseRatesLoading ? 'Cargando...' : '5.500'}
                     inputMode="numeric"
                     value={maxiRateInput}
                     onChange={(e) => handleMaxiRateChange(e.target.value)}
@@ -439,8 +580,8 @@ export default function Page() {
               </div>
 
               <div className="casa-cambio-help">
-                ℹ️ Mirá el valor &quot;Compra USD&quot; en cada casa de cambio y escribilo acá.
-                Se guarda automáticamente en tu app.
+                ℹ️ Las tasas &quot;Compra USD&quot; se traen automáticamente (🟢 auto). Si escribís
+                la tuya, queda guardada y se usa en vez de la automática.
               </div>
             </div>
           )}

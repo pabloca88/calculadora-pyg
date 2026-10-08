@@ -174,14 +174,22 @@ export function calcPaymentMethod(
   }
 }
 
+/**
+ * Compara métodos de pago por su equivalente en ARS. Cada método puede partir
+ * de una conversión Gs→USD distinta (ej. Efectivo USD usa la tasa COMPRA de
+ * una casa de cambio, ARQ/DollarApp usa su tasa efectiva medida), por eso el
+ * monto en USD se resuelve por método via getUsdAmount en lugar de un único
+ * valor compartido.
+ */
 export function getCheapestMethodIds(
-  usdAmount: number,
+  getUsdAmount: (methodId: string) => number,
   arsRates: { oficial: number; tarjeta: number },
   methods: PaymentMethod[] = PAYMENT_METHODS_AR
 ): string[] {
-  if (!usdAmount || usdAmount <= 0) return [];
-
   const comparisons = methods.map(method => {
+    const usdAmount = getUsdAmount(method.id);
+    if (!usdAmount || usdAmount <= 0) return { id: method.id, arsValue: Infinity };
+
     const arsValue =
       method.rateType === 'market'
         ? usdAmount * arsRates.oficial
@@ -190,6 +198,7 @@ export function getCheapestMethodIds(
   });
 
   const minValue = Math.min(...comparisons.map(c => c.arsValue));
+  if (!Number.isFinite(minValue)) return [];
 
   return comparisons
     .filter(c => Math.abs(c.arsValue - minValue) < 1)

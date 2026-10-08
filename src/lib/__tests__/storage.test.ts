@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { saveCalculatorData, loadCalculatorData, saveARSCache, loadARSCache, clearStorage } from '../storage';
+import {
+  saveCalculatorData,
+  loadCalculatorData,
+  saveARSCache,
+  loadARSCache,
+  saveEffectiveDollarAppRate,
+  loadEffectiveDollarAppRate,
+  clearStorage,
+} from '../storage';
 import type { ARSRates } from '../types';
 
 beforeEach(() => {
@@ -59,14 +67,31 @@ describe('saveARSCache / loadARSCache', () => {
   });
 });
 
+describe('saveEffectiveDollarAppRate / loadEffectiveDollarAppRate', () => {
+  it('returns the calibration default when nothing was measured yet', () => {
+    const rate = loadEffectiveDollarAppRate();
+    expect(rate.rate).toBeCloseTo(5991.05, 2);
+    expect(rate.measuredAt).toBe('2026-07-28');
+  });
+
+  it('round-trips a user calibration', () => {
+    saveEffectiveDollarAppRate({ rate: 6020.5, measuredAt: '2026-10-01' });
+    const loaded = loadEffectiveDollarAppRate();
+    expect(loaded.rate).toBe(6020.5);
+    expect(loaded.measuredAt).toBe('2026-10-01');
+  });
+});
+
 describe('clearStorage', () => {
-  it('removes both storage keys', () => {
+  it('removes all storage keys, including the DollarApp calibration', () => {
     saveCalculatorData({ amount: 1 });
     saveARSCache({ oficial: 1000, tarjeta: 1300, mep: null, cripto: null, custom: null });
+    saveEffectiveDollarAppRate({ rate: 6020.5, measuredAt: '2026-10-01' });
 
     clearStorage();
 
     expect(loadCalculatorData()).toBeNull();
     expect(loadARSCache()).toBeNull();
+    expect(loadEffectiveDollarAppRate().measuredAt).toBe('2026-07-28');
   });
 });
