@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
-import { parseChaco, type ExchangeHouseRate } from '@/lib/pygScraping';
+import { resolveRate, type RateSource } from '@/lib/pygRatesFallback';
+import type { ExchangeHouseRate } from '@/lib/pygScraping';
 
 export interface PygRatesResponse {
-  chaco: ExchangeHouseRate;
-  source: 'scraping';
+  rate: ExchangeHouseRate;
+  source: RateSource;
+  chacoError?: string;
   cachedAt: string;
 }
 
 const CHACO_URL = 'https://www.cambioschaco.com.py/widgets/cotizacion/?lang=es';
+const MAXI_URL = 'https://www.maxicambios.com.py/share';
 
 // Headers realistas para evitar bloqueos por bot-detection
 const FETCH_HEADERS = {
@@ -21,6 +24,7 @@ const FETCH_HEADERS = {
 };
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
+const NO_RATE: ExchangeHouseRate = { compra: null, venta: null, updatedAt: null };
 
 let cache: { data: PygRatesResponse; expiresAt: number } | null = null;
 
@@ -41,18 +45,18 @@ async function fetchWithTimeout(url: string, timeoutMs = 8000): Promise<string> 
 }
 
 async function fetchRates(): Promise<PygRatesResponse> {
-  let chaco: ExchangeHouseRate;
-  try {
-    chaco = parseChaco(await fetchWithTimeout(CHACO_URL));
-  } catch (error) {
-    console.error('[pyg-rates] chaco fetch failed:', error);
-    chaco = { compra: null, venta: null, updatedAt: null };
+  const resolution = await resolveRate(
+    () => fetchWithTimeout(CHACO_URL),
+    () => fetchWithTimeout(MAXI_URL)
+  );
+
+  if (resolution.source === 'none') {
+    console.error('[pyg-rates] Chaco y Maxi fallaron:', resolution.chacoError);
+  } else if (resolution.source === 'maxi') {
+    console.warn('[pyg-rates] Chaco no disponible, fallback a Maxi:', resolution.chacoError);
   }
 
-  // Log para debugging en Vercel
-  console.log('[pyg-rates] chaco:', chaco);
-
-  return { chaco, source: 'scraping', cachedAt: new Date().toISOString() };
+  return { ...resolution, cachedAt: new Date().toISOString() };
 }
 
 export async function GET() {
@@ -72,11 +76,7 @@ export async function GET() {
       return NextResponse.json(cache.data);
     }
     return NextResponse.json(
-      {
-        chaco: { compra: null, venta: null, updatedAt: null },
-        source: 'scraping',
-        cachedAt: new Date().toISOString(),
-      },
+      { rate: NO_RATE, source: 'none', cachedAt: new Date().toISOString() },
       { status: 200 }
     );
   }

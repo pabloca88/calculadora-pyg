@@ -89,22 +89,41 @@ describe('getARSStatus', () => {
 });
 
 describe('fetchPygExchangeHouseRates', () => {
-  const mockHouseResponse = {
-    chaco: { compra: 5580, venta: 5730, updatedAt: '08/10/2026 17:00' },
-    source: 'scraping',
+  const mockChacoResponse = {
+    rate: { compra: 5580, venta: 5730, updatedAt: '08/10/2026 17:00' },
+    source: 'chaco',
     cachedAt: '2026-10-08T19:00:00.000Z',
   };
 
   it('returns parsed rates from /api/pyg-rates on success, tagged as api source', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => mockHouseResponse,
+      json: async () => mockChacoResponse,
     }));
 
     const rates = await fetchPygExchangeHouseRates(true);
 
-    expect(rates.chaco.compra).toBe(5580);
-    expect(rates.chaco.source).toBe('api');
+    expect(rates.rate.compra).toBe(5580);
+    expect(rates.rate.source).toBe('api');
+    expect(rates.houseSource).toBe('chaco');
+  });
+
+  it('surfaces houseSource "maxi" and chacoError when the API fell back', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        rate: { compra: 5500, venta: 5750, updatedAt: null },
+        source: 'maxi',
+        chacoError: 'HTTP 403',
+        cachedAt: '2026-10-08T19:00:00.000Z',
+      }),
+    }));
+
+    const rates = await fetchPygExchangeHouseRates(true);
+
+    expect(rates.rate.compra).toBe(5500);
+    expect(rates.houseSource).toBe('maxi');
+    expect(rates.chacoError).toBe('HTTP 403');
   });
 
   it('falls back to all-null rates when fetch fails and there is no cache', async () => {
@@ -112,22 +131,24 @@ describe('fetchPygExchangeHouseRates', () => {
 
     const rates = await fetchPygExchangeHouseRates(true);
 
-    expect(rates.chaco.compra).toBeNull();
-    expect(rates.chaco.source).toBe('none');
+    expect(rates.rate.compra).toBeNull();
+    expect(rates.rate.source).toBe('none');
+    expect(rates.houseSource).toBe('none');
   });
 
-  it('marks chaco as source "none" when scraping returned no compra value', async () => {
+  it('marks rate as source "none" when neither Chaco nor Maxi returned a compra value', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        chaco: { compra: null, venta: null, updatedAt: null },
-        source: 'scraping',
+        rate: { compra: null, venta: null, updatedAt: null },
+        source: 'none',
         cachedAt: '2026-10-08T19:00:00.000Z',
       }),
     }));
 
     const rates = await fetchPygExchangeHouseRates(true);
 
-    expect(rates.chaco.source).toBe('none');
+    expect(rates.rate.source).toBe('none');
+    expect(rates.houseSource).toBe('none');
   });
 });

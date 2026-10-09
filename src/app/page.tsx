@@ -99,12 +99,13 @@ export default function Page() {
     }
   }, []);
 
-  // Autocompleta con el valor scrapeado mientras el usuario no haya tipeado el suyo
+  // Autocompleta con el valor scrapeado (Chaco o, si no está disponible,
+  // Maxicambios) mientras el usuario no haya tipeado el suyo
   useEffect(() => {
-    if (!chacoManualOverride && pygHouseRates.chaco.compra) {
-      setChacoRateInput(pygHouseRates.chaco.compra.toLocaleString('es-PY'));
+    if (!chacoManualOverride && pygHouseRates.rate.compra) {
+      setChacoRateInput(pygHouseRates.rate.compra.toLocaleString('es-PY'));
     }
-  }, [chacoManualOverride, pygHouseRates.chaco.compra]);
+  }, [chacoManualOverride, pygHouseRates.rate.compra]);
 
   const handleChacoRateChange = (value: string) => {
     const formatted = formatNumber(value);
@@ -121,7 +122,7 @@ export default function Page() {
   const handleUseAutomaticChacoRate = () => {
     localStorage.removeItem(CHACO_OVERRIDE_KEY);
     setChacoManualOverride(false);
-    setChacoRateInput(pygHouseRates.chaco.compra ? pygHouseRates.chaco.compra.toLocaleString('es-PY') : '');
+    setChacoRateInput(pygHouseRates.rate.compra ? pygHouseRates.rate.compra.toLocaleString('es-PY') : '');
   };
 
   const handleAmountChange = (value: string) => setPygAmount(formatNumber(value));
@@ -187,18 +188,28 @@ export default function Page() {
       return (
         <div className="conv-expand-row">
           <span className="conv-expand-label">
-            ⚠️ La tasa de Cambios Chaco se carga automáticamente. Si falla, ingresala manualmente en la sección de abajo.
+            ⚠️ La tasa se carga automáticamente (Cambios Chaco, o Maxicambios si Chaco no responde).
+            Si falla, ingresala manualmente en la sección de abajo.
           </span>
         </div>
       );
     }
-    const sourceBadge = chacoManualOverride ? 'manual' : 'API';
-    const updatedAt = pygHouseRates.chaco.updatedAt;
+    if (chacoManualOverride) {
+      return (
+        <div className="conv-expand-row">
+          <span className="conv-expand-label">
+            Tasa: compra ₲{bestExchangeCompra.toLocaleString('es-PY')} (manual)
+          </span>
+        </div>
+      );
+    }
+    const houseName = pygHouseRates.houseSource === 'maxi' ? 'Maxicambios' : 'Cambios Chaco';
+    const updatedAt = pygHouseRates.rate.updatedAt;
     return (
       <div className="conv-expand-row">
         <span className="conv-expand-label">
-          Tasa: Cambios Chaco compra ₲{bestExchangeCompra.toLocaleString('es-PY')}
-          {' '}({sourceBadge}{updatedAt ? ` · ${updatedAt}` : ''})
+          Tasa: {houseName} compra ₲{bestExchangeCompra.toLocaleString('es-PY')}
+          {' '}(API{updatedAt ? ` · ${updatedAt}` : ''})
         </span>
       </div>
     );
@@ -450,8 +461,12 @@ export default function Page() {
               const rateLabel =
                 method.id === 'efectivo-usd'
                   ? bestExchangeCompra
-                    ? `Chaco compra ₲${bestExchangeCompra.toLocaleString('es-PY')}`
-                    : 'Falta tasa Cambios Chaco ⚠️'
+                    ? chacoManualOverride
+                      ? `Compra ₲${bestExchangeCompra.toLocaleString('es-PY')} (manual)`
+                      : pygHouseRates.houseSource === 'maxi'
+                        ? `Maxi compra ₲${bestExchangeCompra.toLocaleString('es-PY')} (Chaco no disponible)`
+                        : `Chaco compra ₲${bestExchangeCompra.toLocaleString('es-PY')}`
+                    : 'Falta tasa de cambio ⚠️'
                   : method.id === 'arq-dolarapp'
                     ? `₲${effectiveDollarAppRate.rate.toLocaleString('es-PY', { maximumFractionDigits: 2 })}/USD (medida ${effectiveDollarAppRate.measuredAt.slice(5).split('-').reverse().join('/')})${dollarAppDaysOld > 7 ? ' 🟡' : ''}`
                     : method.rateType === 'tarjeta' ? 'Dólar Tarjeta +30%' :
@@ -500,14 +515,20 @@ export default function Page() {
           </div>
         )}
 
-        {/* Tasa Cambios Chaco — fuente primaria para Efectivo USD */}
+        {/* Tasa automática — Cambios Chaco con fallback a Maxicambios */}
         <div className="casa-cambio-section">
           <div className="casa-cambio-body">
             <div className="casa-cambio-input-row">
               <span className="casa-cambio-input-label">
-                🏦 Cambios Chaco compra USD
-                {!chacoManualOverride && pygHouseRates.chaco.compra ? ' 🟢' : ''}
-                {pygHouseRates.chaco.updatedAt ? ` · ${pygHouseRates.chaco.updatedAt}` : ''}
+                🏦 Compra USD{' '}
+                {chacoManualOverride
+                  ? '· fuente: manual'
+                  : pygHouseRates.houseSource === 'chaco'
+                    ? '· fuente: Cambios Chaco 🟢'
+                    : pygHouseRates.houseSource === 'maxi'
+                      ? '· fuente: Maxicambios 🟡 (Chaco bloqueado)'
+                      : isHouseRatesLoading ? '' : '· sin datos ⚠️'}
+                {!chacoManualOverride && pygHouseRates.rate.updatedAt ? ` · ${pygHouseRates.rate.updatedAt}` : ''}
               </span>
               <div className="input-wrapper">
                 <span className="currency-symbol">₲</span>
@@ -524,7 +545,7 @@ export default function Page() {
             {chacoManualOverride && (
               <div className="casa-cambio-override-row">
                 <span className="casa-cambio-override-label">
-                  Manual{pygHouseRates.chaco.compra ? ` · auto: ₲${pygHouseRates.chaco.compra.toLocaleString('es-PY')}` : ''}
+                  Manual{pygHouseRates.rate.compra ? ` · auto: ₲${pygHouseRates.rate.compra.toLocaleString('es-PY')}` : ''}
                 </span>
                 <button type="button" className="pyg-refresh-btn" onClick={handleUseAutomaticChacoRate}>
                   ↺ Usar automático
@@ -532,7 +553,7 @@ export default function Page() {
               </div>
             )}
             <div className="casa-cambio-help">
-              Se actualiza automáticamente (🟢). Si escribís tu valor, se guarda por 12hs y reemplaza el automático.
+              Se actualiza automáticamente (Chaco, o Maxicambios si Chaco no responde). Si escribís tu valor, se guarda por 12hs y reemplaza el automático.
             </div>
           </div>
 

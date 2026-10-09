@@ -20,9 +20,10 @@ async function waitForEfectivoRateReady(page: Page) {
     .locator('.payment-card')
     .filter({ hasText: 'Efectivo USD' })
     .locator('.payment-card-label');
-  // Cambios Chaco es la única fuente para Efectivo USD (ya no compara con
-  // Maxicambios), así que el label siempre debe decir "Chaco compra ₲...".
-  await expect(label).toHaveText(/Chaco compra ₲/, { timeout: 15000 });
+  // Cambios Chaco es la fuente primaria; si Cloudflare la bloquea, la app cae
+  // a Maxicambios — el label puede decir cualquiera de las dos. Lo que
+  // importa es que deje de mostrar "Falta tasa" y tenga un valor de compra.
+  await expect(label).toHaveText(/(Chaco|Maxi) compra ₲/, { timeout: 15000 });
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -150,27 +151,28 @@ test('T09 - Cambiar el monto actualiza los resultados', async ({ page }) => {
 // GRUPO 3: TASAS DE CASAS DE CAMBIO (SCRAPING)
 // ════════════════════════════════════════════════════════════════════════════
 
-test('T10 - La API /api/pyg-rates devuelve tasas válidas de Cambios Chaco (única fuente, sin Maxi)', async ({ page }) => {
+test('T10 - La API /api/pyg-rates devuelve una tasa válida (Chaco o, si no responde, Maxicambios)', async ({ page }) => {
   const response = await page.request.get('/api/pyg-rates');
   expect(response.status()).toBe(200);
   const data = await response.json();
-  // Chaco compra should be between 4000 and 8000 (sanity range)
-  expect(data.chaco?.compra).toBeGreaterThan(4000);
-  expect(data.chaco?.compra).toBeLessThan(8000);
-  expect(data.chaco?.venta).toBeGreaterThan(data.chaco?.compra);
-  // Maxicambios se sacó del backend: la respuesta ya no debe traer esa key
-  // (solo queda como iframe de consulta secundaria en la UI).
-  expect(data.maxi).toBeUndefined();
+
+  // La fuente debe ser una de las dos casas de cambio — si fuera 'none' acá
+  // (corriendo contra un dev server local, no contra Vercel) algo más grave
+  // está roto, así que el test falla en vez de pasar en silencio.
+  expect(['chaco', 'maxi']).toContain(data.source);
+  expect(data.rate?.compra).toBeGreaterThan(4000);
+  expect(data.rate?.compra).toBeLessThan(10000);
+  expect(data.rate?.venta).toBeGreaterThan(data.rate?.compra);
 });
 
 test('T11 - La tasa de scraping NO es la tasa de mercado internacional', async ({ page }) => {
   const response = await page.request.get('/api/pyg-rates');
   const data = await response.json();
-  // Market rate is ~5836, Chaco compra should be significantly different
-  const chacoCompra = data.chaco?.compra;
+  // Market rate is ~5836, la compra real (Chaco o Maxi) debe ser distinta
+  const compra = data.rate?.compra;
   // They should NOT be within 1% of each other (market rate ≠ local rate)
   const marketRate = 5836;
-  const diff = Math.abs(chacoCompra - marketRate) / marketRate;
+  const diff = Math.abs(compra - marketRate) / marketRate;
   expect(diff).toBeGreaterThan(0.01); // > 1% difference confirms they're different sources
 });
 
@@ -194,33 +196,34 @@ test('T13 - La card Tarjeta banco argentino muestra Dólar Tarjeta +30%', async 
   await expect(card).toContainText(/Tarjeta \+30%|Dólar Tarjeta/i);
 });
 
-test('T14 - La card Efectivo USD usa SOLO la tasa de Cambios Chaco (no Maxi, no mercado)', async ({ page }) => {
+test('T14 - La card Efectivo USD refleja la fuente real (Chaco o fallback a Maxi), nunca la tasa de mercado', async ({ page }) => {
+  // Chaco es la fuente primaria; si no respondió, la API cae a Maxi — el
+  // label de la card debe reflejar la que REALMENTE se usó, no asumir una.
+  const apiRes = await page.request.get('/api/pyg-rates');
+  const apiData = await apiRes.json();
+
   await page.goto('/');
   await enterAmount(page, '100000');
   await waitForEfectivoRateReady(page);
-  // Get the Efectivo USD card
   const efectivoCard = page.locator('.payment-card').filter({ hasText: 'Efectivo USD' });
   await expect(efectivoCard).toBeVisible();
 
-  // El label de la card debe decir "Chaco compra ₲..." y nunca mencionar Maxi
-  // (Cambios Chaco es la única fuente, ya no se compara contra Maxicambios).
   const labelText = (await efectivoCard.locator('.payment-card-label').textContent()) ?? '';
-  expect(labelText).toMatch(/Chaco compra ₲/);
-  expect(labelText).not.toMatch(/Maxi/i);
+  if (apiData.source === 'chaco') {
+    expect(labelText).toMatch(/^Chaco compra ₲/);
+  } else if (apiData.source === 'maxi') {
+    expect(labelText).toMatch(/^Maxi compra ₲.*\(Chaco no disponible\)/);
+  }
 
-  // El input "Cambios Chaco compra USD" está siempre visible en el flujo
-  // principal — no vive dentro de ningún collapsible.
-  const chacoInputRow = page.locator('.casa-cambio-input-row').filter({ hasText: 'Cambios Chaco' });
-  await expect(chacoInputRow).toBeVisible();
-
-  // No debe existir un input de Maxicambios en el flujo principal de cálculo
-  // (Maxi solo aparece como iframe de consulta dentro de "Ver cotizaciones").
-  const maxiInputRow = page.locator('.casa-cambio-input-row').filter({ hasText: 'Maxicambios' });
-  await expect(maxiInputRow).toHaveCount(0);
+  // El input "🏦 Compra USD" está siempre visible en el flujo principal — no
+  // vive dentro de ningún collapsible, sin importar qué casa lo alimentó.
+  const rateInputRow = page.locator('.casa-cambio-input-row');
+  await expect(rateInputRow).toBeVisible();
+  await expect(rateInputRow).toHaveCount(1);
 
   const usdText = (await efectivoCard.textContent()) ?? '';
-  // With ₲100.000 y la tasa COMPRA real de Cambios Chaco (~5.500-5.800), el
-  // resultado real está en ~17-18 USD. La tasa de mercado (~5836) daría
+  // Con ₲100.000 y la tasa COMPRA real (Chaco o Maxi, ambas ~5.500-5.800),
+  // el resultado real está en ~17-18 USD. La tasa de mercado (~5836) daría
   // 17,13 — distinto a lo que debería mostrar esta card.
   const match = usdText.match(/U\$D\s*([\d]+[,.][\d]+)/);
   expect(match).not.toBeNull();
@@ -326,4 +329,48 @@ test('T19 - REGRESIÓN: ₲100.000 efectivo NO muestra 17,13 USD (bug viejo)', a
     const isBuggyValue = Math.abs(val - 17.13) < 0.15;
     expect(isBuggyValue).toBe(false);
   }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// GRUPO 7: FALLBACK CHACO → MAXI (mockeado, no depende de qué fuente esté
+// disponible en el momento de correr el test)
+// ════════════════════════════════════════════════════════════════════════════
+
+test('T20 - Label muestra "Chaco compra ₲X" cuando la API reporta source=chaco', async ({ page }) => {
+  await page.route('**/api/pyg-rates', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        rate: { compra: 5580, venta: 5730, updatedAt: '08/10/2026 17:00' },
+        source: 'chaco',
+        cachedAt: new Date().toISOString(),
+      }),
+    })
+  );
+
+  await page.goto('/');
+  await enterAmount(page, '100000');
+  const label = page.locator('.payment-card').filter({ hasText: 'Efectivo USD' }).locator('.payment-card-label');
+  await expect(label).toHaveText('Chaco compra ₲5.580', { timeout: 15000 });
+});
+
+test('T21 - Label muestra "Maxi compra ₲X (Chaco no disponible)" cuando la API reporta source=maxi', async ({ page }) => {
+  await page.route('**/api/pyg-rates', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        rate: { compra: 5500, venta: 5750, updatedAt: null },
+        source: 'maxi',
+        chacoError: 'HTTP 403',
+        cachedAt: new Date().toISOString(),
+      }),
+    })
+  );
+
+  await page.goto('/');
+  await enterAmount(page, '100000');
+  const label = page.locator('.payment-card').filter({ hasText: 'Efectivo USD' }).locator('.payment-card-label');
+  await expect(label).toHaveText('Maxi compra ₲5.500 (Chaco no disponible)', { timeout: 15000 });
 });

@@ -152,14 +152,19 @@ export async function getPYGtoUSDRate(force = false): Promise<number> {
   return 6100;
 }
 
+export type HouseSource = 'chaco' | 'maxi' | 'none';
+
 export interface PygExchangeHouseRates {
-  chaco: ExchangeHouseRate;
+  rate: ExchangeHouseRate;
+  houseSource: HouseSource;
+  chacoError?: string;
 }
 
-// _v2: la respuesta de /api/pyg-rates dejó de incluir Maxicambios (ver
-// route.ts) — una key nueva evita que clientes con la caché vieja (que
-// todavía trae `maxi`) sigan leyendo ese formato obsoleto.
-const PYG_HOUSE_CACHE_KEY = 'pyg_calc_house_rates_cache_v2';
+// _v3: la respuesta de /api/pyg-rates pasa de { chaco } a { rate, source }
+// (Chaco con fallback a Maxicambios) — una key nueva evita que un cliente
+// con la caché _v2 (que trae `chaco` en vez de `rate`) siga leyendo ese
+// formato viejo.
+const PYG_HOUSE_CACHE_KEY = 'pyg_calc_house_rates_cache_v3';
 const PYG_HOUSE_CACHE_TTL = 30 * 60 * 1000;
 
 interface PygHouseRatesCache {
@@ -167,9 +172,15 @@ interface PygHouseRatesCache {
   timestamp: number;
 }
 
+const NONE_RATES: PygExchangeHouseRates = {
+  rate: { compra: null, venta: null, updatedAt: null, source: 'none' },
+  houseSource: 'none',
+};
+
 /**
- * Fetch de la tasa de Cambios Chaco (única fuente de PYG/USD local) vía
- * /api/pyg-rates (scraping), con fallback a caché local de 30 minutos.
+ * Fetch de la tasa PYG/USD vía /api/pyg-rates — Cambios Chaco primero, con
+ * fallback automático a Maxicambios si Chaco no respondió (Cloudflare
+ * bloquea las IPs de Vercel) — con fallback a caché local de 30 minutos.
  */
 export const fetchPygExchangeHouseRates = async (force = false): Promise<PygExchangeHouseRates> => {
   if (!force && typeof window !== 'undefined') {
@@ -192,7 +203,9 @@ export const fetchPygExchangeHouseRates = async (force = false): Promise<PygExch
 
     const json = await response.json();
     const data: PygExchangeHouseRates = {
-      chaco: { ...json.chaco, source: json.chaco.compra ? 'api' : 'none' },
+      rate: { ...json.rate, source: json.rate.compra ? 'api' : 'none' },
+      houseSource: json.source,
+      chacoError: json.chacoError,
     };
 
     if (typeof window !== 'undefined') {
@@ -216,8 +229,6 @@ export const fetchPygExchangeHouseRates = async (force = false): Promise<PygExch
       }
     }
 
-    return {
-      chaco: { compra: null, venta: null, updatedAt: null, source: 'none' },
-    };
+    return NONE_RATES;
   }
 };

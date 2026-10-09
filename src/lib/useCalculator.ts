@@ -31,7 +31,8 @@ const DEFAULT_ARS_RATES: ARSRates = {
 };
 
 const DEFAULT_HOUSE_RATES: PygExchangeHouseRates = {
-  chaco: { compra: null, venta: null, updatedAt: null, source: 'none' },
+  rate: { compra: null, venta: null, updatedAt: null, source: 'none' },
+  houseSource: 'none',
 };
 
 export const useCalculator = () => {
