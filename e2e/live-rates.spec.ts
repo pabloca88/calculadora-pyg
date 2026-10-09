@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { isCloudflareChallenge } from '../src/lib/cloudflareChallenge';
 
 /**
  * Test LIVE contra producción real — no usa fixtures ni mocks, así que SÍ
@@ -39,15 +40,10 @@ interface SiteReadResult {
   blocked: boolean;
 }
 
-const isCloudflareBlocked = async (page: Page, status: number | undefined): Promise<boolean> => {
-  if (status === 403) return true;
-  const title = await page.title().catch(() => '');
-  return /just a moment/i.test(title);
-};
-
 async function readChacoCompra(page: Page): Promise<SiteReadResult> {
   const response = await page.goto(CHACO_WIDGET_URL, { timeout: 20000 }).catch(() => null);
-  if (await isCloudflareBlocked(page, response?.status())) {
+  const html = await page.content().catch(() => '');
+  if (isCloudflareChallenge(response?.status(), html)) {
     return { compra: null, blocked: true };
   }
   try {
@@ -66,7 +62,8 @@ async function readChacoCompra(page: Page): Promise<SiteReadResult> {
 // que leer "el primer Dólar" da la moneda equivocada.
 async function readMaxiCompra(page: Page): Promise<SiteReadResult> {
   const response = await page.goto(MAXI_URL, { timeout: 20000 }).catch(() => null);
-  if (await isCloudflareBlocked(page, response?.status())) {
+  const htmlCheck = await page.content().catch(() => '');
+  if (isCloudflareChallenge(response?.status(), htmlCheck)) {
     return { compra: null, blocked: true };
   }
   try {
@@ -89,6 +86,12 @@ async function readMaxiCompra(page: Page): Promise<SiteReadResult> {
 }
 
 test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, request, baseURL }) => {
+  // Solo para probar a propósito el camino de alerta del workflow
+  // (workflow_dispatch con force_fail=true) — el cron nunca lo setea.
+  if (process.env.FORCE_FAIL === 'true') {
+    throw new Error('forced failure — alert test (workflow_dispatch force_fail=true)');
+  }
+
   const apiRes = await request.get(`${baseURL}/api/pyg-rates`);
   const apiOk = apiRes.ok();
   const apiData = apiOk ? await apiRes.json() : null;

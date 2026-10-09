@@ -5,6 +5,12 @@ on:
     # 10:00 Paraguay (UTC-3), lunes a sábado
     - cron: '0 13 * * 1-6'
   workflow_dispatch:
+    inputs:
+      force_fail:
+        description: 'Forzar que el test falle a propósito (para probar el camino de alerta/issue). El cron nunca lo usa.'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   issues: write
@@ -33,6 +39,7 @@ jobs:
         id: live_test
         env:
           LIVE_BASE_URL: https://calculadora-pyg.vercel.app
+          FORCE_FAIL: ${{ inputs.force_fail }}
         run: npm run test:live
         continue-on-error: true
 
