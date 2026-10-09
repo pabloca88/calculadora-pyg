@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useCalculator } from '@/lib/useCalculator';
 import { formatNumber, formatCurrency, parseNumber, parseDecimal } from '@/lib/format';
-import { PAYMENT_METHODS_AR, MERCADO_PAGO_METHOD, WALLET_METHODS, calcPaymentMethod, getCheapestMethodIds } from '@/lib/calculator';
+import { PAYMENT_METHODS_AR, MERCADO_PAGO_METHOD, WALLET_METHODS, calcPaymentMethod, calcReferenceUsdAmount, getCheapestMethodIds } from '@/lib/calculator';
 
 const WALLETS = [
   { value: 'arq', label: 'ARQ / DollarApp' },
@@ -57,11 +57,9 @@ export default function Page() {
     arsStatus,
     isArsLoading,
     isError,
-    pygUsdRate,
-    pygRateStatus,
-    fetchPygRate,
     pygHouseRates,
     isHouseRatesLoading,
+    fetchHouseRates,
     effectiveDollarAppRate,
     calibrateDollarAppRate,
     showOptionalArs,
@@ -72,12 +70,12 @@ export default function Page() {
     setSelectedWallet,
   } = useCalculator();
 
-  const [isRefreshingPyg, setIsRefreshingPyg] = useState(false);
+  const [isRefreshingHouse, setIsRefreshingHouse] = useState(false);
 
-  const handleRefreshPygRate = async () => {
-    setIsRefreshingPyg(true);
-    await fetchPygRate(true);
-    setIsRefreshingPyg(false);
+  const handleRefreshHouseRate = async () => {
+    setIsRefreshingHouse(true);
+    await fetchHouseRates(true);
+    setIsRefreshingHouse(false);
   };
 
   // Casas de cambio de referencia (Fase 3) — el usuario puede sobreescribir
@@ -131,12 +129,18 @@ export default function Page() {
   const pygAmountRaw = parseNumber(pygAmount);
   const hasTouristDiscount = pygAmountRaw > 0;
 
-  // Conversión de referencia PYG → USD vía tasa de mercado internacional.
-  // Solo es una aproximación razonable para pagos que procesa la red
-  // Visa/Mastercard (tarjeta banco, Mercado Pago, Payoneer), porque esas
-  // redes usan una tasa cercana a la interbancaria. NO es la tasa real de
-  // Paraguay — Efectivo USD y ARQ/DollarApp usan tasas locales reales abajo.
-  const usdAmount = pygAmountRaw > 0 && pygUsdRate > 0 ? pygAmountRaw / pygUsdRate : 0;
+  // Tasa de referencia: compra de la casa de cambio (Cambios Chaco, o
+  // Maxicambios si Chaco no respondió) vía /api/pyg-rates, con el override
+  // manual del usuario con prioridad si está activo. Ya no hay una tasa de
+  // mercado internacional de respaldo — sin tasa de referencia, no hay USD
+  // que mostrar (el recuadro de arriba y todo lo que deriva de él muestran
+  // "-" en vez de un número inventado).
+  const bestExchangeCompra = parseNumber(chacoRateInput) || null;
+
+  // Base para el recuadro U$D principal y todo lo que deriva de él (Dólar
+  // Oficial, Tarjeta +30%, tasa personalizada) — y también para Efectivo USD
+  // y las tarjetas/billeteras sin tasa propia, que usan la misma referencia.
+  const usdAmount = calcReferenceUsdAmount(pygAmountRaw, bestExchangeCompra) ?? 0;
   const hasAmount = usdAmount > 0;
 
   const oficialARS = hasAmount && arsRates.oficial ? usdAmount * arsRates.oficial : null;
@@ -147,16 +151,8 @@ export default function Page() {
   const customUsdAmount = hasAmount && customPygRateVal > 0 ? pygAmountRaw / customPygRateVal : 0;
   const customPygARS = customUsdAmount > 0 && arsRates.oficial ? customUsdAmount * arsRates.oficial : null;
 
-  // Efectivo USD: el usuario vende sus dólares físicos a Cambios Chaco
-  // (tasa COMPRA — lo que la casa paga al usuario por sus dólares).
-  // Cambios Chaco es la fuente primaria; Maxi queda como consulta secundaria.
-  const chacoCompra = parseNumber(chacoRateInput) || null;
-  const bestExchangeCompra = chacoCompra;
-  const usdAmountEfectivo =
-    pygAmountRaw > 0 && bestExchangeCompra ? pygAmountRaw / bestExchangeCompra : 0;
-
   // ARQ / DollarApp: tasa efectiva medida con una compra real (calibrable al
-  // pie de la billetera virtual), no la tasa de mercado.
+  // pie de la billetera virtual) — la única excepción con tasa propia.
   const usdAmountArq =
     pygAmountRaw > 0 && effectiveDollarAppRate.rate > 0
       ? pygAmountRaw / effectiveDollarAppRate.rate
@@ -166,7 +162,6 @@ export default function Page() {
   );
 
   const getUsdAmountForMethod = (methodId: string): number => {
-    if (methodId === 'efectivo-usd') return usdAmountEfectivo;
     if (methodId === 'arq-dolarapp') return usdAmountArq;
     return usdAmount;
   };
@@ -183,33 +178,27 @@ export default function Page() {
     ? getCheapestMethodIds(getUsdAmountForMethod, arsRatesForPayment, paymentCards)
     : [];
 
+  // Hora de la última actualización (independiente de qué casa respondió —
+  // el detalle de Chaco/Maxi queda solo dentro de "Ver cotizaciones").
+  const cachedAtTime = pygHouseRates.cachedAt
+    ? new Date(pygHouseRates.cachedAt).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })
+    : null;
+
   const renderEfectivoUsdRates = () => {
     if (!bestExchangeCompra) {
       return (
         <div className="conv-expand-row">
           <span className="conv-expand-label">
-            ⚠️ La tasa se carga automáticamente (Cambios Chaco, o Maxicambios si Chaco no responde).
-            Si falla, ingresala manualmente en la sección de abajo.
+            ⚠️ La tasa de compra se carga automáticamente. Si falla, ingresala manualmente en la sección de abajo.
           </span>
         </div>
       );
     }
-    if (chacoManualOverride) {
-      return (
-        <div className="conv-expand-row">
-          <span className="conv-expand-label">
-            Tasa: compra ₲{bestExchangeCompra.toLocaleString('es-PY')} (manual)
-          </span>
-        </div>
-      );
-    }
-    const houseName = pygHouseRates.houseSource === 'maxi' ? 'Maxicambios' : 'Cambios Chaco';
-    const updatedAt = pygHouseRates.rate.updatedAt;
     return (
       <div className="conv-expand-row">
         <span className="conv-expand-label">
-          Tasa: {houseName} compra ₲{bestExchangeCompra.toLocaleString('es-PY')}
-          {' '}(API{updatedAt ? ` · ${updatedAt}` : ''})
+          Tasa: compra ₲{bestExchangeCompra.toLocaleString('es-PY')}
+          {chacoManualOverride ? ' (manual)' : cachedAtTime ? ` · act. ${cachedAtTime}` : ''}
         </span>
       </div>
     );
@@ -245,23 +234,21 @@ export default function Page() {
           <div className="result-box">
             <div className="result-box-left">
               <span className="result-box-symbol">U$D</span>
-              <span className="result-box-value">{hasAmount ? formatCurrency(usdAmount) : '0,00'}</span>
+              <span className="result-box-value">{hasAmount ? formatCurrency(usdAmount) : '-'}</span>
             </div>
-            {isRefreshingPyg ? (
+            {isRefreshingHouse ? (
               <span className="result-box-label">⏳ actualizando...</span>
-            ) : pygRateStatus === 'live' ? (
+            ) : isHouseRatesLoading ? (
+              <span className="result-box-label">⏳ cargando...</span>
+            ) : bestExchangeCompra ? (
               <span className="result-box-label">🟢 en vivo</span>
-            ) : pygRateStatus === 'cached' ? (
-              <button type="button" className="pyg-refresh-btn" onClick={handleRefreshPygRate}>
-                🔄 Actualizar
-              </button>
             ) : (
               <span className="result-box-label pyg-refresh-fallback">
                 🔴 sin conexión
                 <button
                   type="button"
                   className="pyg-refresh-icon-btn"
-                  onClick={handleRefreshPygRate}
+                  onClick={handleRefreshHouseRate}
                   aria-label="Actualizar tasa"
                 >
                   🔄
@@ -461,11 +448,7 @@ export default function Page() {
               const rateLabel =
                 method.id === 'efectivo-usd'
                   ? bestExchangeCompra
-                    ? chacoManualOverride
-                      ? `Compra ₲${bestExchangeCompra.toLocaleString('es-PY')} (manual)`
-                      : pygHouseRates.houseSource === 'maxi'
-                        ? `Maxi compra ₲${bestExchangeCompra.toLocaleString('es-PY')} (Chaco no disponible)`
-                        : `Chaco compra ₲${bestExchangeCompra.toLocaleString('es-PY')}`
+                    ? `Compra ₲${bestExchangeCompra.toLocaleString('es-PY')}${chacoManualOverride ? ' (manual)' : ''}`
                     : 'Falta tasa de cambio ⚠️'
                   : method.id === 'arq-dolarapp'
                     ? `₲${effectiveDollarAppRate.rate.toLocaleString('es-PY', { maximumFractionDigits: 2 })}/USD (medida ${effectiveDollarAppRate.measuredAt.slice(5).split('-').reverse().join('/')})${dollarAppDaysOld > 7 ? ' 🟡' : ''}`
@@ -515,20 +498,13 @@ export default function Page() {
           </div>
         )}
 
-        {/* Tasa automática — Cambios Chaco con fallback a Maxicambios */}
+        {/* Tasa automática — fuente (Chaco/Maxi) solo visible en "Ver cotizaciones" */}
         <div className="casa-cambio-section">
           <div className="casa-cambio-body">
             <div className="casa-cambio-input-row">
               <span className="casa-cambio-input-label">
-                🏦 Compra USD{' '}
-                {chacoManualOverride
-                  ? '· fuente: manual'
-                  : pygHouseRates.houseSource === 'chaco'
-                    ? '· fuente: Cambios Chaco 🟢'
-                    : pygHouseRates.houseSource === 'maxi'
-                      ? '· fuente: Maxicambios 🟡 (Chaco bloqueado)'
-                      : isHouseRatesLoading ? '' : '· sin datos ⚠️'}
-                {!chacoManualOverride && pygHouseRates.rate.updatedAt ? ` · ${pygHouseRates.rate.updatedAt}` : ''}
+                Compra USD{bestExchangeCompra ? ` ₲${bestExchangeCompra.toLocaleString('es-PY')}` : ''}
+                {chacoManualOverride ? ' · manual' : cachedAtTime ? ` · act. ${cachedAtTime}` : ''}
               </span>
               <div className="input-wrapper">
                 <span className="currency-symbol">₲</span>
@@ -553,7 +529,7 @@ export default function Page() {
               </div>
             )}
             <div className="casa-cambio-help">
-              Se actualiza automáticamente (Chaco, o Maxicambios si Chaco no responde). Si escribís tu valor, se guarda por 12hs y reemplaza el automático.
+              Se actualiza automáticamente. Si escribís tu valor, se guarda por 12hs y reemplaza el automático.
             </div>
           </div>
 

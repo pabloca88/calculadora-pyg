@@ -123,9 +123,11 @@ test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, req
   let uiCompra: number | null = null;
   let uiLabelText = '';
   try {
-    await expect(label).toHaveText(/(Chaco|Maxi) compra ₲/, { timeout: 30000 });
+    // Copy neutral: la card siempre dice "Compra ₲X", nunca el nombre de la
+    // casa (Chaco/Maxi) — ese detalle vive solo en "Ver cotizaciones".
+    await expect(label).toHaveText(/^Compra ₲/, { timeout: 30000 });
     uiLabelText = (await label.textContent()) ?? '';
-    const uiMatch = uiLabelText.match(/compra ₲([\d.]+)/);
+    const uiMatch = uiLabelText.match(/Compra ₲([\d.]+)/);
     uiCompra = uiMatch ? parseGs(uiMatch[1]) : null;
   } catch {
     uiLabelText = (await label.textContent().catch(() => '')) ?? '';

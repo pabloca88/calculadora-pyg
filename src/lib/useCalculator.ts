@@ -12,15 +12,11 @@ import {
 import {
   fetchARSRates,
   getARSStatus,
-  getPYGtoUSDRate,
-  getCachedPygRate,
   fetchPygExchangeHouseRates,
   type PygExchangeHouseRates,
 } from './rates';
 import { calculateConversions, hasValidInputs } from './calculator';
 import { parseNumber } from './format';
-
-export type PygRateStatus = 'live' | 'cached' | 'fallback';
 
 const DEFAULT_ARS_RATES: ARSRates = {
   oficial: null,
@@ -33,6 +29,7 @@ const DEFAULT_ARS_RATES: ARSRates = {
 const DEFAULT_HOUSE_RATES: PygExchangeHouseRates = {
   rate: { compra: null, venta: null, updatedAt: null, source: 'none' },
   houseSource: 'none',
+  cachedAt: '',
 };
 
 export const useCalculator = () => {
@@ -46,8 +43,6 @@ export const useCalculator = () => {
   const [arsRates, setArsRates] = useState<ARSRates>(DEFAULT_ARS_RATES);
   const [arsStatus, setArsStatus] = useState('Cargando...');
   const [isArsLoading, setIsArsLoading] = useState(true);
-  const [pygUsdRate, setPygUsdRate] = useState(6100);
-  const [pygRateStatus, setPygRateStatus] = useState<PygRateStatus>('fallback');
   const [pygHouseRates, setPygHouseRates] = useState<PygExchangeHouseRates>(DEFAULT_HOUSE_RATES);
   const [isHouseRatesLoading, setIsHouseRatesLoading] = useState(true);
   const [effectiveDollarAppRate, setEffectiveDollarAppRate] = useState<EffectiveRate>(
@@ -117,24 +112,6 @@ export const useCalculator = () => {
     setArsStatus(getARSStatus(false, error));
   }, []);
 
-  const fetchPygRate = useCallback(async (force = false) => {
-    const before = getCachedPygRate();
-    const rate = await getPYGtoUSDRate(force);
-    const after = getCachedPygRate();
-
-    let status: PygRateStatus;
-    if (after && (!before || after.timestamp !== before.timestamp)) {
-      status = 'live';
-    } else if (after) {
-      status = 'cached';
-    } else {
-      status = 'fallback';
-    }
-
-    setPygUsdRate(rate);
-    setPygRateStatus(status);
-  }, []);
-
   const calculate = useCallback(() => {
     const conversions = calculateConversions(
       pygAmount,
@@ -163,12 +140,6 @@ export const useCalculator = () => {
     const interval = setInterval(fetchRates, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [loadSavedData, fetchRates]);
-
-  useEffect(() => {
-    fetchPygRate();
-    const interval = setInterval(fetchPygRate, 10 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchPygRate]);
 
   useEffect(() => {
     fetchHouseRates();
@@ -206,9 +177,6 @@ export const useCalculator = () => {
     arsRates,
     arsStatus,
     isArsLoading,
-    pygUsdRate,
-    pygRateStatus,
-    fetchPygRate,
     pygHouseRates,
     isHouseRatesLoading,
     fetchHouseRates,

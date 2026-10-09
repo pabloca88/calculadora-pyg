@@ -3,6 +3,7 @@ import {
   calculateConversions,
   hasValidInputs,
   getCheapestMethodIds,
+  calcReferenceUsdAmount,
   PAYMENT_METHODS_AR,
   WALLET_METHODS,
 } from '../calculator';
@@ -374,5 +375,30 @@ describe('getCheapestMethodIds - resuelve el monto en USD por método', () => {
 
     expect(ids).not.toContain('efectivo-usd');
     expect(ids.length).toBeGreaterThan(0);
+  });
+});
+
+// ─── FIX: sin tasa de mercado de respaldo — el recuadro U$D principal (y
+// todo lo que deriva de él: Oficial, Tarjeta +30%, tasa personalizada) usa
+// SIEMPRE la tasa de referencia de casa de cambio (compra de Chaco/Maxi vía
+// /api/pyg-rates, o el override manual). Sin tasa de referencia, null — la
+// UI debe mostrar "-", nunca caer a una tasa de mercado inventada. ───
+describe('calcReferenceUsdAmount - tasa de referencia (sin fallback a mercado)', () => {
+  it('₲550.000 con compra ₲5.500 → U$D 100,00', () => {
+    expect(calcReferenceUsdAmount(550_000, 5500)).toBeCloseTo(100, 2);
+  });
+
+  it('devuelve null cuando no hay tasa de referencia', () => {
+    expect(calcReferenceUsdAmount(550_000, null)).toBeNull();
+  });
+
+  it('devuelve null cuando el monto es 0 o negativo', () => {
+    expect(calcReferenceUsdAmount(0, 5500)).toBeNull();
+    expect(calcReferenceUsdAmount(-100, 5500)).toBeNull();
+  });
+
+  it('devuelve null cuando la tasa de referencia es 0 o negativa', () => {
+    expect(calcReferenceUsdAmount(550_000, 0)).toBeNull();
+    expect(calcReferenceUsdAmount(550_000, -5500)).toBeNull();
   });
 });

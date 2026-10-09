@@ -20,10 +20,10 @@ async function waitForEfectivoRateReady(page: Page) {
     .locator('.payment-card')
     .filter({ hasText: 'Efectivo USD' })
     .locator('.payment-card-label');
-  // Cambios Chaco es la fuente primaria; si Cloudflare la bloquea, la app cae
-  // a Maxicambios — el label puede decir cualquiera de las dos. Lo que
-  // importa es que deje de mostrar "Falta tasa" y tenga un valor de compra.
-  await expect(label).toHaveText(/(Chaco|Maxi) compra ₲/, { timeout: 15000 });
+  // El label es neutral ("Compra ₲X") sin importar qué casa respondió
+  // (Chaco o, si Cloudflare la bloquea, Maxicambios) — lo que importa es
+  // que deje de mostrar "Falta tasa" y tenga un valor de compra.
+  await expect(label).toHaveText(/Compra ₲/, { timeout: 15000 });
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -123,10 +123,11 @@ test('T07 - AR$ Tarjeta +30% es mayor que AR$ Oficial', async ({ page }) => {
 test('T08 - El monto cero no muestra resultados de conversión', async ({ page }) => {
   await page.goto('/');
   await enterAmount(page, '0');
-  // Result boxes should not show values or should show 0
+  // Sin monto no hay USD que calcular — el recuadro muestra "-" (sin tasa
+  // de mercado de respaldo que invente un valor).
   const usdBox = page.locator('.result-box').first();
   const text = (await usdBox.textContent()) ?? '';
-  const isZeroOrEmpty = text.includes('0,00') || text.includes('–') || text === '';
+  const isZeroOrEmpty = text.includes('0,00') || text.includes('-') || text.includes('–') || text === '';
   expect(isZeroOrEmpty).toBe(true);
 });
 
@@ -196,12 +197,10 @@ test('T13 - La card Tarjeta banco argentino muestra Dólar Tarjeta +30%', async 
   await expect(card).toContainText(/Tarjeta \+30%|Dólar Tarjeta/i);
 });
 
-test('T14 - La card Efectivo USD refleja la fuente real (Chaco o fallback a Maxi), nunca la tasa de mercado', async ({ page }) => {
-  // Chaco es la fuente primaria; si no respondió, la API cae a Maxi — el
-  // label de la card debe reflejar la que REALMENTE se usó, no asumir una.
-  const apiRes = await page.request.get('/api/pyg-rates');
-  const apiData = await apiRes.json();
-
+test('T14 - La card Efectivo USD muestra un label neutral ("Compra ₲X"), nunca Chaco/Maxi ni la tasa de mercado', async ({ page }) => {
+  // El copy es neutral sin importar qué casa respondió por detrás (Chaco,
+  // o Maxi si Cloudflare bloqueó a Chaco) — ese detalle solo vive dentro de
+  // "Ver cotizaciones de casas de cambio".
   await page.goto('/');
   await enterAmount(page, '100000');
   await waitForEfectivoRateReady(page);
@@ -209,13 +208,10 @@ test('T14 - La card Efectivo USD refleja la fuente real (Chaco o fallback a Maxi
   await expect(efectivoCard).toBeVisible();
 
   const labelText = (await efectivoCard.locator('.payment-card-label').textContent()) ?? '';
-  if (apiData.source === 'chaco') {
-    expect(labelText).toMatch(/^Chaco compra ₲/);
-  } else if (apiData.source === 'maxi') {
-    expect(labelText).toMatch(/^Maxi compra ₲.*\(Chaco no disponible\)/);
-  }
+  expect(labelText).toMatch(/^Compra ₲/);
+  expect(labelText).not.toMatch(/Chaco|Maxi/i);
 
-  // El input "🏦 Compra USD" está siempre visible en el flujo principal — no
+  // El input "Compra USD" está siempre visible en el flujo principal — no
   // vive dentro de ningún collapsible, sin importar qué casa lo alimentó.
   const rateInputRow = page.locator('.casa-cambio-input-row');
   await expect(rateInputRow).toBeVisible();
@@ -333,10 +329,11 @@ test('T19 - REGRESIÓN: ₲100.000 efectivo NO muestra 17,13 USD (bug viejo)', a
 
 // ════════════════════════════════════════════════════════════════════════════
 // GRUPO 7: FALLBACK CHACO → MAXI (mockeado, no depende de qué fuente esté
-// disponible en el momento de correr el test)
+// disponible en el momento de correr el test) — el copy es neutral: la UI
+// principal nunca debe filtrar si la tasa vino de Chaco o de Maxi.
 // ════════════════════════════════════════════════════════════════════════════
 
-test('T20 - Label muestra "Chaco compra ₲X" cuando la API reporta source=chaco', async ({ page }) => {
+test('T20 - Label neutral "Compra ₲X" cuando la API reporta source=chaco (sin mencionar Chaco)', async ({ page }) => {
   await page.route('**/api/pyg-rates', (route) =>
     route.fulfill({
       status: 200,
@@ -352,10 +349,10 @@ test('T20 - Label muestra "Chaco compra ₲X" cuando la API reporta source=chaco
   await page.goto('/');
   await enterAmount(page, '100000');
   const label = page.locator('.payment-card').filter({ hasText: 'Efectivo USD' }).locator('.payment-card-label');
-  await expect(label).toHaveText('Chaco compra ₲5.580', { timeout: 15000 });
+  await expect(label).toHaveText('Compra ₲5.580', { timeout: 15000 });
 });
 
-test('T21 - Label muestra "Maxi compra ₲X (Chaco no disponible)" cuando la API reporta source=maxi', async ({ page }) => {
+test('T21 - Label neutral "Compra ₲X" cuando la API reporta source=maxi (sin mencionar Maxi/Chaco)', async ({ page }) => {
   await page.route('**/api/pyg-rates', (route) =>
     route.fulfill({
       status: 200,
@@ -372,5 +369,54 @@ test('T21 - Label muestra "Maxi compra ₲X (Chaco no disponible)" cuando la API
   await page.goto('/');
   await enterAmount(page, '100000');
   const label = page.locator('.payment-card').filter({ hasText: 'Efectivo USD' }).locator('.payment-card-label');
-  await expect(label).toHaveText('Maxi compra ₲5.500 (Chaco no disponible)', { timeout: 15000 });
+  // Mismo copy que con source=chaco: el fallback a Maxi es invisible para
+  // el usuario en la card principal.
+  await expect(label).toHaveText('Compra ₲5.500', { timeout: 15000 });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// GRUPO 8: TASA DE REFERENCIA (sin fallback a tasa de mercado)
+// ════════════════════════════════════════════════════════════════════════════
+
+test('T22 - REGRESIÓN: ₲550.000 con compra de referencia ₲5.500 muestra exactamente U$D 100,00', async ({ page }) => {
+  // Mockeado para que el resultado sea determinístico (no depende de la
+  // tasa real del día) — ya no hay tasa de mercado de respaldo, así que el
+  // recuadro U$D principal usa directamente esta compra de referencia.
+  await page.route('**/api/pyg-rates', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        rate: { compra: 5500, venta: 5750, updatedAt: null },
+        source: 'chaco',
+        cachedAt: new Date().toISOString(),
+      }),
+    })
+  );
+
+  await page.goto('/');
+  await enterAmount(page, '550000');
+
+  const usdBox = page.locator('.result-box').first();
+  await expect(usdBox.locator('.result-box-value')).toHaveText('100,00', { timeout: 15000 });
+});
+
+test('T23 - Sin tasa de referencia, el recuadro U$D muestra "-" (no cae a una tasa de mercado)', async ({ page }) => {
+  await page.route('**/api/pyg-rates', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        rate: { compra: null, venta: null, updatedAt: null },
+        source: 'none',
+        cachedAt: new Date().toISOString(),
+      }),
+    })
+  );
+
+  await page.goto('/');
+  await enterAmount(page, '550000');
+
+  const usdBox = page.locator('.result-box').first();
+  await expect(usdBox.locator('.result-box-value')).toHaveText('-', { timeout: 15000 });
 });

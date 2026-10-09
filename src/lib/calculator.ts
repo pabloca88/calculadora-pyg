@@ -65,6 +65,21 @@ export const calculateConversions = (
 };
 
 /**
+ * USD disponible para una tasa de referencia (casa de cambio vía
+ * /api/pyg-rates, o el override manual del usuario). Única fuente de verdad
+ * para el recuadro U$D principal y todo lo que deriva de él (Dólar Oficial,
+ * Tarjeta +30%, tasa personalizada) — ya no hay una tasa de mercado
+ * internacional de respaldo: sin tasa de referencia, no hay USD que mostrar.
+ */
+export function calcReferenceUsdAmount(
+  pygAmount: number,
+  referenceCompra: number | null
+): number | null {
+  if (!pygAmount || pygAmount <= 0 || !referenceCompra || referenceCompra <= 0) return null;
+  return pygAmount / referenceCompra;
+}
+
+/**
  * Valida si hay datos suficientes para calcular
  */
 export const hasValidInputs = (
