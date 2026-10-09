@@ -1,0 +1,161 @@
+name: Live rates check
+
+on:
+  schedule:
+    # 10:00 Paraguay (UTC-3), lunes a sábado
+    - cron: '0 13 * * 1-6'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  live-rates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run live rates test
+        id: live_test
+        env:
+          LIVE_BASE_URL: https://calculadora-pyg.vercel.app
+        run: npm run test:live
+        continue-on-error: true
+
+      - name: Write summary table
+        if: always()
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = 'test-results/live-summary.json';
+            const out = process.env.GITHUB_STEP_SUMMARY;
+            if (!fs.existsSync(path)) {
+              fs.appendFileSync(out, '## Live rates\n\nEl test no llegó a escribir live-summary.json (falló antes, ver el job).\n');
+              process.exit(0);
+            }
+            const s = JSON.parse(fs.readFileSync(path, 'utf-8'));
+            const rows = [
+              ['Hora', s.timestamp],
+              ['Fuente', s.source],
+              ['Chaco bloqueado en este runner', String(s.chacoBlockedOnRunner)],
+              ['chacoError', s.chacoError ?? '-'],
+              ['Compra sitio', s.siteCompra ?? '-'],
+              ['Compra API', s.apiCompra ?? '-'],
+              ['Compra UI', s.uiCompra ?? '-'],
+              ['Label UI', s.uiLabel ?? '-'],
+              ['Diff sitio vs API (Gs)', s.siteVsApiDiffGs ?? '-'],
+              ['Diff UI vs API (Gs)', s.uiVsApiDiffGs ?? '-'],
+              ['Tolerancia (Gs)', s.toleranceGs ?? '-'],
+            ];
+            let md = '## Live rates\n\n| Campo | Valor |\n|---|---|\n';
+            for (const r of rows) md += '| ' + r[0] + ' | ' + r[1] + ' |\n';
+            fs.appendFileSync(out, md);
+          "
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Open or update issue on failure
+        if: steps.live_test.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let s = {};
+            try {
+              s = JSON.parse(fs.readFileSync('test-results/live-summary.json', 'utf-8'));
+            } catch {
+              // el test falló antes de escribir el resumen
+            }
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              '🔴 **Live rates check falló**',
+              '',
+              '| Campo | Valor |',
+              '|---|---|',
+              `| Hora | ${s.timestamp ?? 'desconocida'} |`,
+              `| Fuente | ${s.source ?? 'desconocida'} |`,
+              `| Chaco bloqueado en este runner | ${s.chacoBlockedOnRunner ?? '-'} |`,
+              `| chacoError | ${s.chacoError ?? '-'} |`,
+              `| Compra sitio | ${s.siteCompra ?? '-'} |`,
+              `| Compra API | ${s.apiCompra ?? '-'} |`,
+              `| Compra UI | ${s.uiCompra ?? '-'} |`,
+              `| Label UI | ${s.uiLabel ?? '-'} |`,
+              `| Diff sitio vs API (Gs) | ${s.siteVsApiDiffGs ?? '-'} |`,
+              `| Diff UI vs API (Gs) | ${s.uiVsApiDiffGs ?? '-'} |`,
+              '',
+              `Run: ${runUrl}`,
+            ].join('\n');
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'live-rates',
+            });
+
+            if (issues.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '🔴 Live rates check falló',
+                body,
+                labels: ['live-rates'],
+              });
+            }
+
+      - name: Close open issue on success
+        if: steps.live_test.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'live-rates',
+            });
+            for (const issue of issues) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: '✅ resuelto',
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+              });
+            }
+
+      - name: Fail job if the live test failed
+        if: steps.live_test.outcome == 'failure'
+        run: exit 1

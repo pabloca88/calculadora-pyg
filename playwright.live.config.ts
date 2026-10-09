@@ -11,7 +11,9 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   workers: 1,
-  reporter: 'list',
+  // 'list' para output legible en consola/CI logs; 'html' (sin auto-abrir)
+  // para tener algo real que subir como artifact en el workflow.
+  reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
     baseURL: process.env.LIVE_BASE_URL || 'https://calculadora-pyg.vercel.app',
   },
