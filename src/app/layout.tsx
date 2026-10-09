@@ -9,10 +9,11 @@ export const metadata: Metadata = {
   title: '💱 Calculadora PYG',
   description: 'Calculadora PWA de monedas Paraguay (PYG → USD → ARS)',
   manifest: '/manifest.json',
-  icons: [
-    { rel: 'icon', url: '/favicon.ico' },
-    { rel: 'apple-touch-icon', url: '/app-logo.png' },
-  ],
+  // favicon.ico, icon.png y apple-icon.png en src/app/ se auto-detectan por
+  // convención de App Router — generan sus propios <link rel="icon"> /
+  // <link rel="apple-touch-icon">, así que declararlos acá sería redundante
+  // (o peor: un <link> duplicado apuntando al app-logo.png de 1.6MB sin
+  // redimensionar).
   openGraph: {
     title: 'Calculadora PYG',
     description: 'Calculá cuánto cuesta realmente pagar en guaraníes según el medio de pago',

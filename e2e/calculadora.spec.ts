@@ -420,3 +420,32 @@ test('T23 - Sin tasa de referencia, el recuadro U$D muestra "-" (no cae a una ta
   const usdBox = page.locator('.result-box').first();
   await expect(usdBox.locator('.result-box-value')).toHaveText('-', { timeout: 15000 });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// GRUPO 9: ICONOS / FAVICON
+// ════════════════════════════════════════════════════════════════════════════
+
+test('T24 - /favicon.ico y /icon.png responden 200 con imagen real, y el HTML los referencia', async ({ page }) => {
+  const faviconRes = await page.request.get('/favicon.ico');
+  expect(faviconRes.status()).toBe(200);
+  expect(faviconRes.headers()['content-type']).toMatch(/^image\//);
+  expect((await faviconRes.body()).byteLength).toBeGreaterThan(0);
+
+  const iconRes = await page.request.get('/icon.png');
+  expect(iconRes.status()).toBe(200);
+  expect(iconRes.headers()['content-type']).toMatch(/^image\//);
+  expect((await iconRes.body()).byteLength).toBeGreaterThan(0);
+
+  await page.goto('/');
+  const iconLinks = page.locator('link[rel="icon"]');
+  await expect(iconLinks).toHaveCount(2);
+
+  const hrefs = await iconLinks.evaluateAll((els) => els.map((el) => el.getAttribute('href') ?? ''));
+  expect(hrefs.some((h) => h === '/favicon.ico')).toBe(true);
+  expect(hrefs.some((h) => h.startsWith('/icon.png'))).toBe(true);
+
+  const appleIcon = page.locator('link[rel="apple-touch-icon"]');
+  await expect(appleIcon).toHaveCount(1);
+  const appleHref = await appleIcon.getAttribute('href');
+  expect(appleHref).toMatch(/^\/apple-icon\.png/);
+});
