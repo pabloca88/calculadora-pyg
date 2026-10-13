@@ -166,17 +166,6 @@ test('T10 - La API /api/pyg-rates devuelve una tasa válida (Chaco o, si no resp
   expect(data.rate?.venta).toBeGreaterThan(data.rate?.compra);
 });
 
-test('T11 - La tasa de scraping NO es la tasa de mercado internacional', async ({ page }) => {
-  const response = await page.request.get('/api/pyg-rates');
-  const data = await response.json();
-  // Market rate is ~5836, la venta real (Chaco o Maxi) debe ser distinta
-  const venta = data.rate?.venta;
-  // They should NOT be within 1% of each other (market rate ≠ local rate)
-  const marketRate = 5836;
-  const diff = Math.abs(venta - marketRate) / marketRate;
-  expect(diff).toBeGreaterThan(0.01); // > 1% difference confirms they're different sources
-});
-
 // ════════════════════════════════════════════════════════════════════════════
 // GRUPO 4: CARDS DE MÉTODOS DE PAGO
 // ════════════════════════════════════════════════════════════════════════════

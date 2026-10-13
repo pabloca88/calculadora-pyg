@@ -342,7 +342,7 @@ export default function Page() {
                 className="pyg-auto-custom-toggle"
                 onClick={() => setShowCalibForm(!showCalibForm)}
               >
-                {showCalibForm ? 'Registrar compra real ▲' : '📊 Registrar compra real ▼'}
+                {showCalibForm ? 'Registrar operación real ▲' : '📊 Registrar operación real ▼'}
               </button>
               {showCalibForm && (
                 <div className="pyg-auto-custom-input">
