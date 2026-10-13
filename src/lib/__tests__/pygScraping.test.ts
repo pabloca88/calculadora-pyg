@@ -51,6 +51,11 @@ describe('parseChaco', () => {
     expect(result.venta).not.toBeNull();
   });
 
+  it('snapshot fresco (12/10/2026) del widget', () => {
+    const result = parseChaco(fixture('chaco-2026-10-12.html'));
+    expect(result).toEqual({ compra: 5630, venta: 5740, updatedAt: '12/10/2026 17:25' });
+  });
+
   it('returns nulls when the expected markup is missing', () => {
     const result = parseChaco('<html><body>no data here</body></html>');
     expect(result.compra).toBeNull();
@@ -74,6 +79,17 @@ describe('parseMaxi', () => {
     const result = parseMaxi(fixture('maxi.html'));
     expect(result.compra).toBe(5500);
     expect(result.venta).toBe(5750);
+  });
+
+  it('extrae el timestamp "Ultima actualización" normalizado al formato de Chaco', () => {
+    expect(parseMaxi(fixture('maxi.html')).updatedAt).toBe('08/10/2026 15:45');
+  });
+
+  it('snapshot fresco (12/10/2026): compra/venta USD y updatedAt no null', () => {
+    const result = parseMaxi(fixture('maxi-2026-10-12.html'));
+    expect(result.compra).toBe(5550);
+    expect(result.venta).toBe(5730);
+    expect(result.updatedAt).toBe('12/10/2026 16:31');
   });
 
   it('returns nulls when the expected markup is missing', () => {

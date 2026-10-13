@@ -10,8 +10,8 @@ export const parseGsNumber = (raw: string): number | null => {
   return Number.isFinite(value) && value > 0 ? value : null;
 };
 
-const RATE_MIN = 4000;
-const RATE_MAX = 10000;
+export const RATE_MIN = 4000;
+export const RATE_MAX = 10000;
 
 /**
  * Validación de cordura compartida por ambos parsers: un USD/PYG fuera de
@@ -19,7 +19,7 @@ const RATE_MAX = 10000;
  * otra cosa (otra moneda, otro producto, markup roto) — preferimos null a
  * devolver un número que parece válido pero está mal.
  */
-const isSaneRate = (compra: number | null, venta: number | null): boolean => {
+export const isSaneRate = (compra: number | null, venta: number | null): boolean => {
   if (compra === null || venta === null) return false;
   if (compra < RATE_MIN || compra > RATE_MAX) return false;
   if (venta <= compra) return false;
@@ -69,6 +69,14 @@ export const parseChaco = (html: string): ExchangeHouseRate => {
  * para que el regex de Compra/Venta no se escape a la moneda de al lado.
  */
 export const parseMaxi = (html: string): ExchangeHouseRate => {
+  // Header de la página (arriba de las secciones de cotización):
+  //   <strong ...>Ultima actualización:</strong> <span ...>12/10/2026 - 16:31</span>
+  // Se normaliza a "12/10/2026 16:31", el mismo formato que parseChaco.
+  const tsMatch = html.match(
+    /Ultima actualizaci[oó]n:<\/strong>\s*<span[^>]*>\s*([\d/]+)\s*-\s*([\d:]+)/i
+  );
+  const updatedAt = tsMatch ? `${tsMatch[1]} ${tsMatch[2]}` : null;
+
   const startIdx = html.indexOf('id="cotizacion-carousel"');
   const endIdx = startIdx >= 0 ? html.indexOf('id="cotizacion-cd"', startIdx) : -1;
   if (startIdx < 0 || endIdx < 0) {
@@ -94,8 +102,8 @@ export const parseMaxi = (html: string): ExchangeHouseRate => {
     if (compra !== null || venta !== null) {
       console.warn('[pygScraping] parseMaxi: tasa fuera de rango, descartada', { compra, venta });
     }
-    return { compra: null, venta: null, updatedAt: null };
+    return { compra: null, venta: null, updatedAt };
   }
 
-  return { compra, venta, updatedAt: null };
+  return { compra, venta, updatedAt };
 };
