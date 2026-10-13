@@ -374,6 +374,26 @@ test('T21 - Label neutral "Compra ₲X" cuando la API reporta source=maxi (sin m
   await expect(label).toHaveText('Compra ₲5.500', { timeout: 15000 });
 });
 
+test('T21b - "act." muestra el updatedAt de la casa ("12/10 17:25"), no la hora del fetch', async ({ page }) => {
+  await page.route('**/api/pyg-rates', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        rate: { compra: 5630, venta: 5740, updatedAt: '12/10/2026 17:25' },
+        source: 'chaco',
+        chacoVia: 'push',
+        readAt: '2026-10-12T21:00:00.000Z',
+        cachedAt: '2026-10-13T01:19:16.036Z',
+      }),
+    })
+  );
+
+  await page.goto('/');
+  const label = page.locator('.casa-cambio-input-label');
+  await expect(label).toHaveText('Compra USD ₲5.630 · act. 12/10 17:25', { timeout: 15000 });
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 // GRUPO 8: TASA DE REFERENCIA (sin fallback a tasa de mercado)
 // ════════════════════════════════════════════════════════════════════════════

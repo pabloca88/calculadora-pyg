@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useCalculator } from '@/lib/useCalculator';
-import { formatNumber, formatCurrency, parseNumber, parseDecimal } from '@/lib/format';
+import { formatNumber, formatCurrency, parseNumber, parseDecimal, formatHouseUpdatedAt } from '@/lib/format';
 import { PAYMENT_METHODS_AR, MERCADO_PAGO_METHOD, WALLET_METHODS, calcPaymentMethod, calcReferenceUsdAmount, getCheapestMethodIds } from '@/lib/calculator';
 
 const WALLETS = [
@@ -178,11 +178,9 @@ export default function Page() {
     ? getCheapestMethodIds(getUsdAmountForMethod, arsRatesForPayment, paymentCards)
     : [];
 
-  // Hora de la última actualización (independiente de qué casa respondió —
-  // el detalle de Chaco/Maxi queda solo dentro de "Ver cotizaciones").
-  const cachedAtTime = pygHouseRates.cachedAt
-    ? new Date(pygHouseRates.cachedAt).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })
-    : null;
+  // Fecha/hora de la cotización según la propia casa (no la hora del fetch);
+  // el detalle de Chaco/Maxi queda solo dentro de "Ver cotizaciones".
+  const houseUpdatedAt = formatHouseUpdatedAt(pygHouseRates.rate.updatedAt);
 
   const renderEfectivoUsdRates = () => {
     if (!bestExchangeCompra) {
@@ -198,7 +196,7 @@ export default function Page() {
       <div className="conv-expand-row">
         <span className="conv-expand-label">
           Tasa: compra ₲{bestExchangeCompra.toLocaleString('es-PY')}
-          {chacoManualOverride ? ' (manual)' : cachedAtTime ? ` · act. ${cachedAtTime}` : ''}
+          {chacoManualOverride ? ' (manual)' : houseUpdatedAt ? ` · act. ${houseUpdatedAt}` : ''}
         </span>
       </div>
     );
@@ -504,7 +502,7 @@ export default function Page() {
             <div className="casa-cambio-input-row">
               <span className="casa-cambio-input-label">
                 Compra USD{bestExchangeCompra ? ` ₲${bestExchangeCompra.toLocaleString('es-PY')}` : ''}
-                {chacoManualOverride ? ' · manual' : cachedAtTime ? ` · act. ${cachedAtTime}` : ''}
+                {chacoManualOverride ? ' · manual' : houseUpdatedAt ? ` · act. ${houseUpdatedAt}` : ''}
               </span>
               <div className="input-wrapper">
                 <span className="currency-symbol">₲</span>

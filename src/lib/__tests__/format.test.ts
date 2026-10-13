@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseNumber, parseDecimal, formatNumber, formatDecimal, formatCurrency, formatARSRate, parseARSRate, validateARSRate, formatPYG } from '../format';
+import { parseNumber, parseDecimal, formatNumber, formatDecimal, formatCurrency, formatARSRate, parseARSRate, validateARSRate, formatPYG, formatHouseUpdatedAt } from '../format';
 
 describe('parseNumber', () => {
   it('returns 0 for empty string', () => {
@@ -210,5 +210,17 @@ describe('formatPYG', () => {
 
   it('debe formatear ₲1.500.000 correctamente', () => {
     expect(formatPYG('1500000')).toBe('1.500.000');
+  });
+});
+
+describe('formatHouseUpdatedAt', () => {
+  it('recorta el año del timestamp de la casa', () => {
+    expect(formatHouseUpdatedAt('12/10/2026 17:25')).toBe('12/10 17:25');
+  });
+
+  it('null si no viene o no tiene la forma esperada', () => {
+    expect(formatHouseUpdatedAt(null)).toBeNull();
+    expect(formatHouseUpdatedAt(undefined)).toBeNull();
+    expect(formatHouseUpdatedAt('ayer')).toBeNull();
   });
 });

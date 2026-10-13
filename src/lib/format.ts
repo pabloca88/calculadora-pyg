@@ -109,3 +109,13 @@ export const validateARSRate = (value: string): { isValid: boolean; message?: st
   if (num > 100000) return { isValid: false, message: 'Tasa muy alta (máximo AR$100.000)' };
   return { isValid: true };
 };
+
+/**
+ * Timestamp de la casa de cambio ("12/10/2026 17:25", formato de
+ * parseChaco/parseMaxi) → "12/10 17:25" para el label "act.". null si no
+ * viene o no tiene la forma esperada.
+ */
+export const formatHouseUpdatedAt = (updatedAt: string | null | undefined): string | null => {
+  const match = updatedAt?.match(/^(\d{1,2}\/\d{1,2})\/\d{4}\s+(\d{1,2}:\d{2})/);
+  return match ? `${match[1]} ${match[2]}` : null;
+};
