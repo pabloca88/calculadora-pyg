@@ -103,7 +103,7 @@ describe('fetchPygExchangeHouseRates', () => {
 
     const rates = await fetchPygExchangeHouseRates(true);
 
-    expect(rates.rate.compra).toBe(5580);
+    expect(rates.rate.venta).toBe(5730);
     expect(rates.rate.source).toBe('api');
     expect(rates.houseSource).toBe('chaco');
   });
@@ -121,7 +121,7 @@ describe('fetchPygExchangeHouseRates', () => {
 
     const rates = await fetchPygExchangeHouseRates(true);
 
-    expect(rates.rate.compra).toBe(5500);
+    expect(rates.rate.venta).toBe(5750);
     expect(rates.houseSource).toBe('maxi');
     expect(rates.chacoError).toBe('HTTP 403');
   });
@@ -131,12 +131,12 @@ describe('fetchPygExchangeHouseRates', () => {
 
     const rates = await fetchPygExchangeHouseRates(true);
 
-    expect(rates.rate.compra).toBeNull();
+    expect(rates.rate.venta).toBeNull();
     expect(rates.rate.source).toBe('none');
     expect(rates.houseSource).toBe('none');
   });
 
-  it('marks rate as source "none" when neither Chaco nor Maxi returned a compra value', async () => {
+  it('marks rate as source "none" when neither Chaco nor Maxi returned a venta value', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({

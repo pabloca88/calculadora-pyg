@@ -65,7 +65,7 @@ export const calculateConversions = (
 };
 
 /**
- * USD disponible para una tasa de referencia (casa de cambio vía
+ * USD disponible para la tasa única de referencia (VENTA de la casa de cambio vía
  * /api/pyg-rates, o el override manual del usuario). Única fuente de verdad
  * para el recuadro U$D principal y todo lo que deriva de él (Dólar Oficial,
  * Tarjeta +30%, tasa personalizada) — ya no hay una tasa de mercado
@@ -73,10 +73,10 @@ export const calculateConversions = (
  */
 export function calcReferenceUsdAmount(
   pygAmount: number,
-  referenceCompra: number | null
+  referenceVenta: number | null
 ): number | null {
-  if (!pygAmount || pygAmount <= 0 || !referenceCompra || referenceCompra <= 0) return null;
-  return pygAmount / referenceCompra;
+  if (!pygAmount || pygAmount <= 0 || !referenceVenta || referenceVenta <= 0) return null;
+  return pygAmount / referenceVenta;
 }
 
 /**
@@ -168,7 +168,7 @@ export function calcPaymentMethod(
 
 /**
  * Compara métodos de pago por su equivalente en ARS. Cada método puede partir
- * de una conversión Gs→USD distinta (ej. Efectivo USD usa la tasa COMPRA de
+ * de una conversión Gs→USD distinta (ej. Efectivo USD usa la tasa VENTA de
  * una casa de cambio, ARQ/DollarApp usa su tasa efectiva medida), por eso el
  * monto en USD se resuelve por método via getUsdAmount en lugar de un único
  * valor compartido.

@@ -37,7 +37,7 @@ describe('resolveRate', () => {
     const result = await resolveRate({ readPushedChaco: noPush, fetchChacoHtml: fetchChaco, fetchMaxiHtml: fetchMaxi });
 
     expect(result.source).toBe('chaco');
-    expect(result.rate.compra).toBe(5580);
+    expect(result.rate.venta).toBe(5730);
     expect(result.chacoVia).toBe('direct');
     expect(fetchMaxi).not.toHaveBeenCalled();
   });
@@ -49,7 +49,7 @@ describe('resolveRate', () => {
     const result = await resolveRate({ readPushedChaco: noPush, fetchChacoHtml: fetchChaco, fetchMaxiHtml: fetchMaxi });
 
     expect(result.source).toBe('maxi');
-    expect(result.rate.compra).toBe(5500);
+    expect(result.rate.venta).toBe(5750);
     expect(result.chacoError).toBe('push_missing; parse_failed');
     expect(fetchMaxi).toHaveBeenCalledTimes(1);
   });
@@ -61,7 +61,7 @@ describe('resolveRate', () => {
     const result = await resolveRate({ readPushedChaco: noPush, fetchChacoHtml: fetchChaco, fetchMaxiHtml: fetchMaxi });
 
     expect(result.source).toBe('maxi');
-    expect(result.rate.compra).toBe(5500);
+    expect(result.rate.venta).toBe(5750);
     expect(result.chacoError).toBe('push_missing; HTTP 403');
   });
 
@@ -72,7 +72,7 @@ describe('resolveRate', () => {
     const result = await resolveRate({ readPushedChaco: noPush, fetchChacoHtml: fetchChaco, fetchMaxiHtml: fetchMaxi });
 
     expect(result.source).toBe('none');
-    expect(result.rate.compra).toBeNull();
+    expect(result.rate.venta).toBeNull();
     expect(result.chacoError).toBe('push_missing; HTTP 403');
   });
 
@@ -83,7 +83,7 @@ describe('resolveRate', () => {
     const result = await resolveRate({ readPushedChaco: noPush, fetchChacoHtml: fetchChaco, fetchMaxiHtml: fetchMaxi });
 
     expect(result.source).toBe('none');
-    expect(result.rate.compra).toBeNull();
+    expect(result.rate.venta).toBeNull();
   });
 
   describe('push desde la Mac', () => {
@@ -118,7 +118,7 @@ describe('resolveRate', () => {
 
       expect(result.source).toBe('chaco');
       expect(result.chacoVia).toBe('direct');
-      expect(result.rate.compra).toBe(5580);
+      expect(result.rate.venta).toBe(5730);
       expect(result.chacoError).toBe('push_stale');
     });
 
@@ -131,7 +131,7 @@ describe('resolveRate', () => {
       });
 
       expect(result.source).toBe('maxi');
-      expect(result.rate.compra).toBe(5500);
+      expect(result.rate.venta).toBe(5750);
       expect(result.chacoError).toBe('push_stale; HTTP 403');
     });
 

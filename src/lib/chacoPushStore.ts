@@ -24,7 +24,7 @@ export type PushValidation =
 
 /**
  * Valida el body del push con la misma cordura que los parsers
- * (compra en [4.000, 10.000], venta > compra) y un readAt ISO que no esté
+ * (compra y venta en [4.000, 10.000], venta > compra) y un readAt ISO que no esté
  * en el futuro.
  */
 export const validatePushBody = (body: unknown, now = Date.now()): PushValidation => {

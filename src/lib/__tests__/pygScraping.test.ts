@@ -140,6 +140,13 @@ describe('parseMaxi', () => {
     expect(result.venta).toBeNull();
   });
 
+  it('descarta cuando la venta está fuera de rango aunque la compra sea válida', () => {
+    const html = wrapSection(buildCurrencyBlock('USD', '5500', '10500'));
+    const result = parseMaxi(html);
+    expect(result.compra).toBeNull();
+    expect(result.venta).toBeNull();
+  });
+
   it('descarta cuando venta <= compra', () => {
     const html = wrapSection(buildCurrencyBlock('USD', '5750', '5500'));
     const result = parseMaxi(html);

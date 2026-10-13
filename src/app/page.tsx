@@ -10,7 +10,11 @@ const WALLETS = [
   { value: 'payoneer', label: 'Payoneer' },
 ];
 
-const CHACO_OVERRIDE_KEY = 'chaco_rate';
+// _venta_v1: desde el 13/10/2026 el override significa VENTA (antes era
+// compra, bajo 'chaco_rate') — key nueva para que un valor de compra viejo
+// no se cuele como venta; la key vieja se borra al leer.
+const CHACO_OVERRIDE_KEY = 'chaco_rate_venta_v1';
+const LEGACY_CHACO_OVERRIDE_KEY = 'chaco_rate';
 const CHACO_OVERRIDE_TTL_MS = 12 * 60 * 60 * 1000;
 
 interface ChacoOverride {
@@ -24,6 +28,7 @@ interface ChacoOverride {
  * valor tipeado hace meses no tape la tasa automática para siempre.
  */
 const readValidChacoOverride = (): string | null => {
+  localStorage.removeItem(LEGACY_CHACO_OVERRIDE_KEY);
   const raw = localStorage.getItem(CHACO_OVERRIDE_KEY);
   if (!raw) return null;
 
@@ -79,7 +84,7 @@ export default function Page() {
   };
 
   // Casas de cambio de referencia (Fase 3) — el usuario puede sobreescribir
-  // manualmente el valor "Compra USD" traído por scraping desde /api/pyg-rates
+  // manualmente el valor "Venta USD" traído por scraping desde /api/pyg-rates
   const [chacoRateInput, setChacoRateInput] = useState('');
   const [chacoManualOverride, setChacoManualOverride] = useState(false);
   const [showCalibForm, setShowCalibForm] = useState(false);
@@ -100,10 +105,10 @@ export default function Page() {
   // Autocompleta con el valor scrapeado (Chaco o, si no está disponible,
   // Maxicambios) mientras el usuario no haya tipeado el suyo
   useEffect(() => {
-    if (!chacoManualOverride && pygHouseRates.rate.compra) {
-      setChacoRateInput(pygHouseRates.rate.compra.toLocaleString('es-PY'));
+    if (!chacoManualOverride && pygHouseRates.rate.venta) {
+      setChacoRateInput(pygHouseRates.rate.venta.toLocaleString('es-PY'));
     }
-  }, [chacoManualOverride, pygHouseRates.rate.compra]);
+  }, [chacoManualOverride, pygHouseRates.rate.venta]);
 
   const handleChacoRateChange = (value: string) => {
     const formatted = formatNumber(value);
@@ -120,7 +125,7 @@ export default function Page() {
   const handleUseAutomaticChacoRate = () => {
     localStorage.removeItem(CHACO_OVERRIDE_KEY);
     setChacoManualOverride(false);
-    setChacoRateInput(pygHouseRates.rate.compra ? pygHouseRates.rate.compra.toLocaleString('es-PY') : '');
+    setChacoRateInput(pygHouseRates.rate.venta ? pygHouseRates.rate.venta.toLocaleString('es-PY') : '');
   };
 
   const handleAmountChange = (value: string) => setPygAmount(formatNumber(value));
@@ -129,18 +134,18 @@ export default function Page() {
   const pygAmountRaw = parseNumber(pygAmount);
   const hasTouristDiscount = pygAmountRaw > 0;
 
-  // Tasa de referencia: compra de la casa de cambio (Cambios Chaco, o
+  // Tasa única de referencia: VENTA de la casa de cambio (Cambios Chaco, o
   // Maxicambios si Chaco no respondió) vía /api/pyg-rates, con el override
   // manual del usuario con prioridad si está activo. Ya no hay una tasa de
   // mercado internacional de respaldo — sin tasa de referencia, no hay USD
   // que mostrar (el recuadro de arriba y todo lo que deriva de él muestran
   // "-" en vez de un número inventado).
-  const bestExchangeCompra = parseNumber(chacoRateInput) || null;
+  const referenceVenta = parseNumber(chacoRateInput) || null;
 
   // Base para el recuadro U$D principal y todo lo que deriva de él (Dólar
   // Oficial, Tarjeta +30%, tasa personalizada) — y también para Efectivo USD
   // y las tarjetas/billeteras sin tasa propia, que usan la misma referencia.
-  const usdAmount = calcReferenceUsdAmount(pygAmountRaw, bestExchangeCompra) ?? 0;
+  const usdAmount = calcReferenceUsdAmount(pygAmountRaw, referenceVenta) ?? 0;
   const hasAmount = usdAmount > 0;
 
   const oficialARS = hasAmount && arsRates.oficial ? usdAmount * arsRates.oficial : null;
@@ -183,11 +188,11 @@ export default function Page() {
   const houseUpdatedAt = formatHouseUpdatedAt(pygHouseRates.rate.updatedAt);
 
   const renderEfectivoUsdRates = () => {
-    if (!bestExchangeCompra) {
+    if (!referenceVenta) {
       return (
         <div className="conv-expand-row">
           <span className="conv-expand-label">
-            ⚠️ La tasa de compra se carga automáticamente. Si falla, ingresala manualmente en la sección de abajo.
+            ⚠️ La tasa de venta se carga automáticamente. Si falla, ingresala manualmente en la sección de abajo.
           </span>
         </div>
       );
@@ -195,7 +200,7 @@ export default function Page() {
     return (
       <div className="conv-expand-row">
         <span className="conv-expand-label">
-          Tasa: compra ₲{bestExchangeCompra.toLocaleString('es-PY')}
+          Tasa: venta ₲{referenceVenta.toLocaleString('es-PY')}
           {chacoManualOverride ? ' (manual)' : houseUpdatedAt ? ` · act. ${houseUpdatedAt}` : ''}
         </span>
       </div>
@@ -238,7 +243,7 @@ export default function Page() {
               <span className="result-box-label">⏳ actualizando...</span>
             ) : isHouseRatesLoading ? (
               <span className="result-box-label">⏳ cargando...</span>
-            ) : bestExchangeCompra ? (
+            ) : referenceVenta ? (
               <span className="result-box-label">🟢 en vivo</span>
             ) : (
               <span className="result-box-label pyg-refresh-fallback">
@@ -445,8 +450,8 @@ export default function Page() {
               const networkFeeLabel = method.network ? `${method.network} · ${feeLabel}` : feeLabel;
               const rateLabel =
                 method.id === 'efectivo-usd'
-                  ? bestExchangeCompra
-                    ? `Compra ₲${bestExchangeCompra.toLocaleString('es-PY')}${chacoManualOverride ? ' (manual)' : ''}`
+                  ? referenceVenta
+                    ? `Venta ₲${referenceVenta.toLocaleString('es-PY')}${chacoManualOverride ? ' (manual)' : ''}`
                     : 'Falta tasa de cambio ⚠️'
                   : method.id === 'arq-dolarapp'
                     ? `₲${effectiveDollarAppRate.rate.toLocaleString('es-PY', { maximumFractionDigits: 2 })}/USD (medida ${effectiveDollarAppRate.measuredAt.slice(5).split('-').reverse().join('/')})${dollarAppDaysOld > 7 ? ' 🟡' : ''}`
@@ -501,7 +506,7 @@ export default function Page() {
           <div className="casa-cambio-body">
             <div className="casa-cambio-input-row">
               <span className="casa-cambio-input-label">
-                Compra USD{bestExchangeCompra ? ` ₲${bestExchangeCompra.toLocaleString('es-PY')}` : ''}
+                Venta USD{referenceVenta ? ` ₲${referenceVenta.toLocaleString('es-PY')}` : ''}
                 {chacoManualOverride ? ' · manual' : houseUpdatedAt ? ` · act. ${houseUpdatedAt}` : ''}
               </span>
               <div className="input-wrapper">
@@ -519,7 +524,7 @@ export default function Page() {
             {chacoManualOverride && (
               <div className="casa-cambio-override-row">
                 <span className="casa-cambio-override-label">
-                  Manual{pygHouseRates.rate.compra ? ` · auto: ₲${pygHouseRates.rate.compra.toLocaleString('es-PY')}` : ''}
+                  Manual{pygHouseRates.rate.venta ? ` · auto: ₲${pygHouseRates.rate.venta.toLocaleString('es-PY')}` : ''}
                 </span>
                 <button type="button" className="pyg-refresh-btn" onClick={handleUseAutomaticChacoRate}>
                   ↺ Usar automático

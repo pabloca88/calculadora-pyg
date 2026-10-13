@@ -116,7 +116,7 @@ export const fetchPygExchangeHouseRates = async (force = false): Promise<PygExch
 
     const json = await response.json();
     const data: PygExchangeHouseRates = {
-      rate: { ...json.rate, source: json.rate.compra ? 'api' : 'none' },
+      rate: { ...json.rate, source: json.rate.venta ? 'api' : 'none' },
       houseSource: json.source,
       chacoError: json.chacoError,
       cachedAt: json.cachedAt,

@@ -318,11 +318,12 @@ describe('Tasa Personalizada (Custom PYG Rate)', () => {
 
 // ─── FIX CRÍTICO: cada método de pago usa su propia tasa real, no la tasa de
 // mercado internacional (~5.836) para todo. Regresión del bug reportado:
-// Cambios Chaco compra 5.580 → ₲100.000 deben ser U$D 17,92, no U$D 17,13
+// Desde el 13/10/2026 la tasa única de referencia es la VENTA de Cambios
+// Chaco: venta 5.700 → ₲100.000 deben ser U$D 17,54, no U$D 17,13
 // (que es lo que daba dividir por la tasa de mercado). ───
 describe('FIX CRÍTICO - Tasas reales por método de pago', () => {
   const MARKET_RATE = 5836; // tasa de mercado internacional (solo referencia)
-  const CHACO_COMPRA = 5580; // tasa real relevada 08/10/2026 17:00
+  const CHACO_VENTA = 5700; // tasa real relevada 13/10/2026 17:00
   const DOLLARAPP_EFFECTIVE = 5991.05; // tasa medida con compra real 28/07/2026
 
   it('Efectivo USD con la tasa de mercado da un resultado incorrecto (bug original)', () => {
@@ -330,9 +331,9 @@ describe('FIX CRÍTICO - Tasas reales por método de pago', () => {
     expect(usdConMercado).toBeCloseTo(17.14, 1);
   });
 
-  it('Efectivo USD con la tasa COMPRA real de Cambios Chaco da el resultado correcto', () => {
-    const usdConChaco = 100_000 / CHACO_COMPRA;
-    expect(usdConChaco).toBeCloseTo(17.92, 2);
+  it('Efectivo USD con la tasa VENTA real de Cambios Chaco da el resultado correcto', () => {
+    const usdConChaco = 100_000 / CHACO_VENTA;
+    expect(usdConChaco).toBeCloseTo(17.54, 2);
   });
 
   it('ARQ/DollarApp con su tasa efectiva medida da U$D 16,69 para ₲100.000', () => {
@@ -342,8 +343,8 @@ describe('FIX CRÍTICO - Tasas reales por método de pago', () => {
 
   it('la tasa de mercado sobrestima el USD disponible frente a la tasa real de Chaco', () => {
     const usdConMercado = 100_000 / MARKET_RATE;
-    const usdConChaco = 100_000 / CHACO_COMPRA;
-    // Con una tasa compra más baja que la de mercado, el usuario necesita
+    const usdConChaco = 100_000 / CHACO_VENTA;
+    // Con una tasa venta más baja que la de mercado, el usuario necesita
     // MENOS guaraníes por dólar que sacar, es decir obtiene MÁS dólares.
     expect(usdConChaco).toBeGreaterThan(usdConMercado);
   });
@@ -354,7 +355,7 @@ describe('getCheapestMethodIds - resuelve el monto en USD por método', () => {
 
   it('usa la función getUsdAmount para cada método en vez de un único monto compartido', () => {
     const getUsdAmount = (methodId: string) => {
-      if (methodId === 'efectivo-usd') return 17.92; // Chaco compra 5.580
+      if (methodId === 'efectivo-usd') return 17.54; // Chaco venta 5.700
       return 17.13; // tasa de mercado para el resto
     };
 
@@ -380,12 +381,13 @@ describe('getCheapestMethodIds - resuelve el monto en USD por método', () => {
 
 // ─── FIX: sin tasa de mercado de respaldo — el recuadro U$D principal (y
 // todo lo que deriva de él: Oficial, Tarjeta +30%, tasa personalizada) usa
-// SIEMPRE la tasa de referencia de casa de cambio (compra de Chaco/Maxi vía
+// SIEMPRE la tasa única de referencia: VENTA de Chaco (o Maxi) vía
 // /api/pyg-rates, o el override manual). Sin tasa de referencia, null — la
 // UI debe mostrar "-", nunca caer a una tasa de mercado inventada. ───
 describe('calcReferenceUsdAmount - tasa de referencia (sin fallback a mercado)', () => {
-  it('₲550.000 con compra ₲5.500 → U$D 100,00', () => {
-    expect(calcReferenceUsdAmount(550_000, 5500)).toBeCloseTo(100, 2);
+  it('₲550.000 con venta Chaco ₲5.700 → U$D 96,49', () => {
+    const usd = calcReferenceUsdAmount(550_000, 5700)!;
+    expect(usd.toFixed(2)).toBe('96.49');
   });
 
   it('devuelve null cuando no hay tasa de referencia', () => {

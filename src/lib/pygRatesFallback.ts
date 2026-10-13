@@ -53,7 +53,7 @@ export async function resolveRate({
 
   try {
     const chaco = parseChaco(await fetchChacoHtml());
-    if (chaco.compra !== null) {
+    if (chaco.venta !== null) {
       return { rate: chaco, source: 'chaco', chacoVia: 'direct', chacoError };
     }
     chacoError += '; parse_failed';
@@ -63,7 +63,7 @@ export async function resolveRate({
 
   try {
     const maxi = parseMaxi(await fetchMaxiHtml());
-    if (maxi.compra !== null) {
+    if (maxi.venta !== null) {
       return { rate: maxi, source: 'maxi', chacoError };
     }
   } catch {

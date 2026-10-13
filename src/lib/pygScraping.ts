@@ -14,14 +14,15 @@ export const RATE_MIN = 4000;
 export const RATE_MAX = 10000;
 
 /**
- * Validación de cordura compartida por ambos parsers: un USD/PYG fuera de
- * [4.000, 10.000], o con venta <= compra, es señal de que el regex agarró
+ * Validación de cordura compartida por ambos parsers: compra o venta fuera de
+ * [4.000, 10.000], o venta <= compra, es señal de que el regex agarró
  * otra cosa (otra moneda, otro producto, markup roto) — preferimos null a
  * devolver un número que parece válido pero está mal.
  */
 export const isSaneRate = (compra: number | null, venta: number | null): boolean => {
   if (compra === null || venta === null) return false;
   if (compra < RATE_MIN || compra > RATE_MAX) return false;
+  if (venta < RATE_MIN || venta > RATE_MAX) return false;
   if (venta <= compra) return false;
   return true;
 };
