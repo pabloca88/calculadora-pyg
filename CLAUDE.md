@@ -32,14 +32,20 @@ métodos de pago. Producción: https://calculadora-pyg.vercel.app
 cachea en memoria (30 min).
 
 ### Cálculo
-- Efectivo USD y el recuadro U$D usan la **compra** de la casa (o el override
-  manual, que vence a las 12 h).
+- **Tasa única de referencia = Chaco VENTA (decidido 13/10/2026).** Una casa,
+  un número: el recuadro U$D, AR$ Oficial, Tarjeta +30%, tasa personalizada,
+  Efectivo USD y la comparación "más barato" usan `rate.venta` (Maxi de
+  fallback: también su venta). La compra **nunca** entra en un cálculo ni es
+  fallback; solo se valida (venta > compra).
+- Override manual = venta, vence a las 12 h (localStorage `chaco_rate_venta_v1`;
+  la key vieja `chaco_rate`, que era compra, se borra).
 - **Sin tasa de mercado** (exchangerate-api y similares eliminados). Sin tasa
   → se muestra "-".
-- Cordura en todos lados (parsers y push): compra en **4.000–10.000** y
-  venta > compra; si no, se descarta (null / 400).
-- UI neutral: la card principal no nombra a Chaco/Maxi. "act. DD/MM HH:MM" es
-  el `updatedAt` de la casa, no la hora del fetch.
+- Cordura en todos lados (parsers y push): compra y venta en **4.000–10.000**
+  y venta > compra; si no, se descarta (null / 400).
+- UI neutral: la card principal no nombra a Chaco/Maxi y no dice "compra":
+  "Venta USD ₲X · act. DD/MM HH:MM" y "Venta ₲X". "act." es el `updatedAt` de
+  la casa, no la hora del fetch.
 
 ## Comandos
 - `npm test`: vitest (unit, con fixtures en `src/lib/__tests__/fixtures`)
