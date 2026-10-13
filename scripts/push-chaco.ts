@@ -18,7 +18,7 @@
  * Env (.env.local): PUSH_TOKEN (requerido), PUSH_URL (opcional).
  * Log: ~/Library/Logs/calculadora-pyg-chaco.log
  */
-import { appendFileSync, existsSync } from 'node:fs';
+import { appendFileSync, existsSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from '@playwright/test';
@@ -27,8 +27,12 @@ import { isCloudflareChallenge } from '../src/lib/cloudflareChallenge';
 import { isPyBusinessHours } from '../src/lib/businessHours';
 
 const ROOT = join(__dirname, '..');
-const LOG_FILE = join(homedir(), 'Library', 'Logs', 'calculadora-pyg-chaco.log');
-const CHACO_URL = 'https://www.cambioschaco.com.py/widgets/cotizacion/?lang=es';
+const LOG_DIR = join(homedir(), 'Library', 'Logs');
+const LOG_FILE = join(LOG_DIR, 'calculadora-pyg-chaco.log');
+const FAILED_HTML_PREFIX = 'calculadora-pyg-chaco-failed-';
+const FAILED_HTML_KEEP = 5;
+// CHACO_URL se puede pisar por env solo para probar el camino de parse_failed.
+const CHACO_URL = process.env.CHACO_URL || 'https://www.cambioschaco.com.py/widgets/cotizacion/?lang=es';
 const DEFAULT_PUSH_URL = 'https://calculadora-pyg.vercel.app/api/pyg-rates/push';
 
 const args = new Set(process.argv.slice(2));
@@ -45,6 +49,25 @@ const log = (level: 'INFO' | 'WARN' | 'ERROR', message: string) => {
   }
 };
 
+/**
+ * Guarda el HTML crudo cuando parseChaco no encuentra tasa, para poder ver
+ * qué cambió en el widget. Conserva solo los últimos FAILED_HTML_KEEP.
+ */
+const saveFailedHtml = (html: string): string | null => {
+  try {
+    const file = join(LOG_DIR, `${FAILED_HTML_PREFIX}${new Date().toISOString().replace(/[:.]/g, '-')}.html`);
+    writeFileSync(file, html);
+    const old = readdirSync(LOG_DIR)
+      .filter((name) => name.startsWith(FAILED_HTML_PREFIX) && name.endsWith('.html'))
+      .sort()
+      .slice(0, -FAILED_HTML_KEEP);
+    for (const name of old) unlinkSync(join(LOG_DIR, name));
+    return file;
+  } catch {
+    return null;
+  }
+};
+
 async function readChaco() {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -54,7 +77,7 @@ async function readChaco() {
     if (isCloudflareChallenge(response?.status(), html)) {
       throw new Error(`Cloudflare challenge (HTTP ${response?.status() ?? '?'})`);
     }
-    return parseChaco(html);
+    return { rate: parseChaco(html), html, status: response?.status() };
   } finally {
     await browser.close();
   }
@@ -73,9 +96,12 @@ async function main() {
   if (!token && !DRY_RUN) throw new Error(`PUSH_TOKEN no definido (esperado en ${envFile})`);
 
   const readAt = new Date().toISOString();
-  const rate = await readChaco();
+  const { rate, html, status } = await readChaco();
   if (rate.compra === null || rate.venta === null) {
-    throw new Error(`parseChaco no encontró una tasa válida (updatedAt=${rate.updatedAt})`);
+    const saved = saveFailedHtml(html);
+    throw new Error(
+      `parseChaco no encontró una tasa válida (HTTP ${status ?? '?'}, ${html.length} bytes, updatedAt=${rate.updatedAt}) — HTML: ${saved ?? 'no se pudo guardar'}`
+    );
   }
   const body = { compra: rate.compra, venta: rate.venta, updatedAt: rate.updatedAt, readAt };
   log('INFO', `Chaco leído: compra=${body.compra} venta=${body.venta} updatedAt=${body.updatedAt}`);
@@ -92,7 +118,7 @@ async function main() {
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`push HTTP ${res.status}: ${text}`);
-  log('INFO', `push OK → ${pushUrl}`);
+  log('INFO', `push OK (HTTP ${res.status}) → ${pushUrl}`);
 }
 
 main().catch((error) => {
