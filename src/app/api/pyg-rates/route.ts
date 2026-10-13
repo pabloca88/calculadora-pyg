@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
-import { resolveRate, type RateSource } from '@/lib/pygRatesFallback';
-import type { ExchangeHouseRate } from '@/lib/pygScraping';
+import { resolveRate, type RateResolution } from '@/lib/pygRatesFallback';
+import { readPushedChaco } from '@/lib/chacoPushStore';
 
-export interface PygRatesResponse {
-  rate: ExchangeHouseRate;
-  source: RateSource;
-  chacoError?: string;
-  cachedAt: string;
-}
+export const dynamic = 'force-dynamic';
+
+export type PygRatesResponse = RateResolution & { cachedAt: string };
 
 const CHACO_URL = 'https://www.cambioschaco.com.py/widgets/cotizacion/?lang=es';
 const MAXI_URL = 'https://www.maxicambios.com.py/share';
@@ -23,10 +20,11 @@ const FETCH_HEADERS = {
   'Cache-Control': 'no-cache',
 };
 
+// Caché en memoria SOLO del scraping (HTML o error de Chaco/Maxi, 30 min por
+// URL) — el valor pusheado desde la Mac se lee del store en cada GET, así
+// que un push nuevo se ve en el próximo request sin invalidar nada.
 const CACHE_TTL_MS = 30 * 60 * 1000;
-const NO_RATE: ExchangeHouseRate = { compra: null, venta: null, updatedAt: null };
-
-let cache: { data: PygRatesResponse; expiresAt: number } | null = null;
+const htmlCache = new Map<string, { result: Promise<string>; expiresAt: number }>();
 
 async function fetchWithTimeout(url: string, timeoutMs = 8000): Promise<string> {
   const controller = new AbortController();
@@ -44,11 +42,22 @@ async function fetchWithTimeout(url: string, timeoutMs = 8000): Promise<string> 
   }
 }
 
-async function fetchRates(): Promise<PygRatesResponse> {
-  const resolution = await resolveRate(
-    () => fetchWithTimeout(CHACO_URL),
-    () => fetchWithTimeout(MAXI_URL)
-  );
+function cachedFetch(url: string): Promise<string> {
+  const now = Date.now();
+  const hit = htmlCache.get(url);
+  if (hit && hit.expiresAt > now) return hit.result;
+  const result = fetchWithTimeout(url);
+  result.catch(() => {}); // el rechazo se maneja en resolveRate; evita unhandled rejection
+  htmlCache.set(url, { result, expiresAt: now + CACHE_TTL_MS });
+  return result;
+}
+
+export async function GET() {
+  const resolution = await resolveRate({
+    readPushedChaco,
+    fetchChacoHtml: () => cachedFetch(CHACO_URL),
+    fetchMaxiHtml: () => cachedFetch(MAXI_URL),
+  });
 
   if (resolution.source === 'none') {
     console.error('[pyg-rates] Chaco y Maxi fallaron:', resolution.chacoError);
@@ -56,28 +65,6 @@ async function fetchRates(): Promise<PygRatesResponse> {
     console.warn('[pyg-rates] Chaco no disponible, fallback a Maxi:', resolution.chacoError);
   }
 
-  return { ...resolution, cachedAt: new Date().toISOString() };
-}
-
-export async function GET() {
-  const now = Date.now();
-
-  if (cache && cache.expiresAt > now) {
-    return NextResponse.json(cache.data);
-  }
-
-  try {
-    const data = await fetchRates();
-    cache = { data, expiresAt: now + CACHE_TTL_MS };
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('Error fetching PYG rates:', error);
-    if (cache) {
-      return NextResponse.json(cache.data);
-    }
-    return NextResponse.json(
-      { rate: NO_RATE, source: 'none', cachedAt: new Date().toISOString() },
-      { status: 200 }
-    );
-  }
+  const data: PygRatesResponse = { ...resolution, cachedAt: new Date().toISOString() };
+  return NextResponse.json(data);
 }
