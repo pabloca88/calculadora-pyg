@@ -38,7 +38,7 @@ const parseGs = (raw: string): number =>
   parseFloat(raw.trim().replace(/\./g, '').replace(',', '.'));
 
 interface SiteReadResult {
-  compra: number | null;
+  venta: number | null;
   blocked: boolean;
 }
 
@@ -46,16 +46,16 @@ interface SiteReadResult {
 // flags/USD.png y corta en la bandera siguiente — Maxicambios lista Dólar
 // Canadiense y Dólar Australiano con el mismo texto visible "Dólar", así
 // que leer "el primer Dólar" da la moneda equivocada.
-async function readMaxiCompra(page: Page): Promise<SiteReadResult> {
+async function readMaxiVenta(page: Page): Promise<SiteReadResult> {
   const response = await page.goto(MAXI_URL, { timeout: 20000 }).catch(() => null);
   const htmlCheck = await page.content().catch(() => '');
   if (isCloudflareChallenge(response?.status(), htmlCheck)) {
-    return { compra: null, blocked: true };
+    return { venta: null, blocked: true };
   }
   try {
     await page.waitForSelector('#cotizacion-carousel', { timeout: 15000 });
   } catch {
-    return { compra: null, blocked: true };
+    return { venta: null, blocked: true };
   }
   const html = await page.content();
   const startIdx = html.indexOf('id="cotizacion-carousel"');
@@ -63,12 +63,12 @@ async function readMaxiCompra(page: Page): Promise<SiteReadResult> {
   const section = html.slice(startIdx, endIdx);
 
   const usdFlagIdx = section.indexOf('flags/USD.png');
-  if (usdFlagIdx < 0) return { compra: null, blocked: false };
+  if (usdFlagIdx < 0) return { venta: null, blocked: false };
   const nextFlagIdx = section.indexOf('flags/', usdFlagIdx + 1);
   const usdBlock = section.slice(usdFlagIdx, nextFlagIdx > 0 ? nextFlagIdx : usdFlagIdx + 2500);
 
-  const match = usdBlock.match(/Dólar<\/p>[\s\S]{0,500}?Compra<\/p>\s*<p[^>]*>\s*([\d.,]+)/);
-  return { compra: match ? parseGs(match[1]) : null, blocked: false };
+  const match = usdBlock.match(/Dólar<\/p>[\s\S]{0,500}?Compra<\/p>[\s\S]{0,1500}?Venta<\/p>\s*<p[^>]*>\s*([\d.,]+)/);
+  return { venta: match ? parseGs(match[1]) : null, blocked: false };
 }
 
 test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, request, baseURL }) => {
@@ -91,13 +91,13 @@ test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, req
   const businessHours = isPyBusinessHours();
   const readAgeMin = readAt ? Math.round((Date.now() - Date.parse(readAt)) / 60000) : null;
 
-  console.log(`[live] API ${baseURL}/api/pyg-rates: source=${source} via=${chacoVia ?? '-'} compra=${apiCompra} readAt=${readAt ?? '-'} chacoError=${chacoError ?? '-'} businessHours=${businessHours}`);
+  console.log(`[live] API ${baseURL}/api/pyg-rates: source=${source} via=${chacoVia ?? '-'} venta=${apiVenta} readAt=${readAt ?? '-'} chacoError=${chacoError ?? '-'} businessHours=${businessHours}`);
 
   // source=chaco: NO se re-lee Chaco (Cloudflare bloquea al runner) — se
   // valida el valor de la API. source=maxi: se compara contra Maxicambios.
-  let siteResult: SiteReadResult = { compra: null, blocked: false };
+  let siteResult: SiteReadResult = { venta: null, blocked: false };
   if (source === 'maxi') {
-    siteResult = await readMaxiCompra(page);
+    siteResult = await readMaxiVenta(page);
   }
 
   // Leer la UI en producción
@@ -107,24 +107,25 @@ test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, req
   const efectivoCard = page.locator('.payment-card').filter({ hasText: 'Efectivo USD' });
   const label = efectivoCard.locator('.payment-card-label');
 
-  let uiCompra: number | null = null;
+  let uiVenta: number | null = null;
   let uiLabelText = '';
   try {
-    // Copy neutral: la card siempre dice "Compra ₲X", nunca el nombre de la
+    // Copy neutral: la card siempre dice "Venta ₲X" (tasa única de
+    // referencia = venta, decidido 13/10/2026), nunca el nombre de la
     // casa (Chaco/Maxi) — ese detalle vive solo en "Ver cotizaciones".
-    await expect(label).toHaveText(/^Compra ₲/, { timeout: 30000 });
+    await expect(label).toHaveText(/^Venta ₲/, { timeout: 30000 });
     uiLabelText = (await label.textContent()) ?? '';
-    const uiMatch = uiLabelText.match(/Compra ₲([\d.]+)/);
-    uiCompra = uiMatch ? parseGs(uiMatch[1]) : null;
+    const uiMatch = uiLabelText.match(/Venta ₲([\d.]+)/);
+    uiVenta = uiMatch ? parseGs(uiMatch[1]) : null;
   } catch {
     uiLabelText = (await label.textContent().catch(() => '')) ?? '';
   }
 
-  const siteVsApiDiffGs = siteResult.compra != null && apiCompra != null
-    ? Math.abs(siteResult.compra - apiCompra)
+  const siteVsApiDiffGs = siteResult.venta != null && apiVenta != null
+    ? Math.abs(siteResult.venta - apiVenta)
     : null;
-  const uiVsApiDiffGs = uiCompra != null && apiCompra != null
-    ? Math.abs(uiCompra - apiCompra)
+  const uiVsApiDiffGs = uiVenta != null && apiVenta != null
+    ? Math.abs(uiVenta - apiVenta)
     : null;
 
   const summary = {
@@ -137,10 +138,10 @@ test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, req
     readAgeMin,
     houseUpdatedAt,
     chacoError,
-    siteCompra: siteResult.compra,
+    siteVenta: siteResult.venta,
     apiCompra,
     apiVenta,
-    uiCompra,
+    uiVenta,
     uiLabel: uiLabelText,
     siteVsApiDiffGs,
     uiVsApiDiffGs,
@@ -156,10 +157,11 @@ test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, req
 
   // ─── Fallos reales ──────────────────────────────────────────────────────
   expect(source, `la API devolvió source='none' (chacoError: ${chacoError})`).not.toBe('none');
-  expect(apiCompra, 'la API devolvió compra null').not.toBeNull();
-  expect(apiCompra).toBeGreaterThanOrEqual(4000);
-  expect(apiCompra).toBeLessThanOrEqual(10000);
-  expect(apiVenta, 'venta debe ser mayor que compra').toBeGreaterThan(apiCompra!);
+  expect(apiVenta, 'la API devolvió venta null').not.toBeNull();
+  expect(apiVenta).toBeGreaterThanOrEqual(4000);
+  expect(apiVenta).toBeLessThanOrEqual(10000);
+  // Integridad del dato de la casa (no se usa compra en ningún cálculo).
+  expect(apiVenta, 'venta debe ser mayor que compra').toBeGreaterThan(apiCompra ?? Infinity);
 
   if (businessHours) {
     expect(
@@ -175,10 +177,11 @@ test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, req
   // Maxi (fuera de horario) se compara contra el propio sitio de Maxicambios,
   // que nunca debería estar bloqueado.
   if (source === 'maxi') {
-    expect(siteResult.compra, 'no se pudo leer Maxicambios para comparar contra la API').not.toBeNull();
+    expect(siteResult.venta, 'no se pudo leer la venta de Maxicambios para comparar contra la API').not.toBeNull();
     expect(siteVsApiDiffGs, `diferencia Maxicambios vs API: ${siteVsApiDiffGs} Gs`).toBeLessThanOrEqual(CACHE_TOLERANCE_GS);
   }
 
-  expect(uiCompra, `la UI no muestra ningún valor de compra (label: "${uiLabelText}")`).not.toBeNull();
+  expect(uiLabelText, 'el label de Efectivo USD debe decir "Venta"').toMatch(/^Venta ₲/);
+  expect(uiVenta, `la UI no muestra ningún valor de venta (label: "${uiLabelText}")`).not.toBeNull();
   expect(uiVsApiDiffGs, `diferencia UI vs API: ${uiVsApiDiffGs} Gs`).toBeLessThanOrEqual(CACHE_TOLERANCE_GS);
 });
