@@ -1,21 +1,22 @@
 /**
- * Lee el widget de Cambios Chaco desde ESTA Mac (IP residencial — Cloudflare
- * le da 403 a Vercel y a GitHub Actions) y lo pushea a producción:
+ * Reads the Cambios Chaco widget from the maintainer's Mac (residential IP;
+ * Cloudflare returns 403 to Vercel and GitHub Actions) and pushes it to
+ * production:
  *   POST /api/pyg-rates/push  (Authorization: Bearer $PUSH_TOKEN)
  *
- * Sin proxies ni servicios anti-Cloudflare: es un Chromium headless normal
- * leyendo una página pública, cada 30 min, desde la red de casa.
+ * No proxies or anti-Cloudflare services: a plain headless Chromium reads a
+ * public page every 30 minutes from a home network.
  *
- * Lo corre launchd (~/Library/LaunchAgents/com.pablo.calculadorapyg.chaco.plist)
- * lun–sáb 08:00–19:00 hora Paraguay. Si la Mac despierta fuera de esa franja
- * y launchd dispara un run atrasado, el script lo saltea.
+ * Scheduled by launchd (installed with scripts/launchd/install.sh) Mon–Sat
+ * 08:00–19:00 Paraguay time. If the Mac wakes up outside that window and
+ * launchd fires a late run, the script skips it.
  *
- * Uso:
- *   node --import tsx scripts/push-chaco.ts            # respeta la franja horaria
- *   node --import tsx scripts/push-chaco.ts --force    # corre a cualquier hora
- *   node --import tsx scripts/push-chaco.ts --dry-run  # lee y parsea, no pushea
+ * Usage:
+ *   node --import tsx scripts/push-chaco.ts            # respects the time window
+ *   node --import tsx scripts/push-chaco.ts --force    # runs at any time
+ *   node --import tsx scripts/push-chaco.ts --dry-run  # reads and parses, no push
  *
- * Env (.env.local): PUSH_TOKEN (requerido), PUSH_URL (opcional).
+ * Env (.env.local): PUSH_TOKEN (required), PUSH_URL (optional).
  * Log: ~/Library/Logs/calculadora-pyg-chaco.log
  */
 import { appendFileSync, existsSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';

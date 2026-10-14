@@ -40,8 +40,8 @@ export interface ExchangeHouseRate {
   source: 'api' | 'manual' | 'none';
 }
 
-// Tasa efectiva medida con una compra real (ej. DollarApp), para billeteras
-// que no exponen una tasa pública.
+// User-calibrated effective rate (e.g. DollarApp) for wallets that don't
+// publish a rate.
 export interface EffectiveRate {
   rate: number;
   measuredAt: string; // ISO date 'YYYY-MM-DD'

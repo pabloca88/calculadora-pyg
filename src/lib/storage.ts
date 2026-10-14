@@ -4,8 +4,8 @@ const STORAGE_KEY = 'pyg_calc_v7';
 const STORAGE_KEY_ARS = 'pyg_calc_v7_ars';
 const STORAGE_KEY_EFFECTIVE_DOLLARAPP = 'pyg_calc_effective_dollarapp';
 
-// Tasa por defecto medida con una compra real en DollarApp (28/07/2026).
-// Se usa hasta que el usuario calibre una medición propia más reciente.
+// Reference effective DollarApp rate (calibrable). Used until the user
+// calibrates a more recent value of their own.
 const DEFAULT_EFFECTIVE_DOLLARAPP: EffectiveRate = {
   rate: 5991.05,
   measuredAt: '2026-07-28',
@@ -78,7 +78,7 @@ export const loadARSCache = (): ARSRates | null => {
 };
 
 /**
- * Guarda la tasa efectiva de DollarApp medida con una compra real
+ * Saves the user-calibrated effective DollarApp rate.
  */
 export const saveEffectiveDollarAppRate = (rate: EffectiveRate): void => {
   try {

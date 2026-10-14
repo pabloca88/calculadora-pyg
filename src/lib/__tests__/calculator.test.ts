@@ -324,7 +324,7 @@ describe('Tasa Personalizada (Custom PYG Rate)', () => {
 describe('FIX CRÍTICO - Tasas reales por método de pago', () => {
   const MARKET_RATE = 5836; // tasa de mercado internacional (solo referencia)
   const CHACO_VENTA = 5700; // tasa real relevada 13/10/2026 17:00
-  const DOLLARAPP_EFFECTIVE = 5991.05; // tasa medida con compra real 28/07/2026
+  const DOLLARAPP_EFFECTIVE = 5991.05; // reference effective rate (calibrable), see storage.ts
 
   it('Efectivo USD con la tasa de mercado da un resultado incorrecto (bug original)', () => {
     const usdConMercado = 100_000 / MARKET_RATE;

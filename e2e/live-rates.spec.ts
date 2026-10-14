@@ -5,29 +5,28 @@ import { isCloudflareChallenge } from '../src/lib/cloudflareChallenge';
 import { isPyBusinessHours } from '../src/lib/businessHours';
 
 /**
- * Test LIVE contra producción real — no usa fixtures ni mocks, así que SÍ
- * detecta si el deploy está devolviendo null o una tasa vieja (algo que los
- * tests normales, corridos contra fixtures/localhost, no pueden ver).
+ * LIVE test against real production: no fixtures or mocks, so it DOES catch a
+ * deploy returning null or a stale rate (which fixture/localhost tests can't).
  *
- * Fuente primaria: Cambios Chaco pusheado desde la Mac de Pablo (launchd,
- * lun–sáb 08:00–19:00 PY) a /api/pyg-rates/push, porque Cloudflare bloquea
- * a Vercel y a los runners de GitHub. Por eso, si la API dice source=chaco,
- * este test NO intenta re-leer Chaco (el runner está bloqueado): valida la
- * cordura del valor y, en horario hábil, que el push tenga readAt < 3 h.
+ * Primary source: Cambios Chaco pushed from the maintainer's Mac (launchd,
+ * Mon–Sat 08:00–19:00 PY) to /api/pyg-rates/push, because Cloudflare blocks
+ * Vercel and GitHub runners. So when the API says source=chaco this test does
+ * NOT re-read Chaco (the runner is blocked): it checks the value's sanity and,
+ * during business hours, that the push has readAt < 3 h.
  *
- * - Horario hábil (lun–sáb 08–19 PY): se exige source=chaco. Maxi en ese
- *   horario significa que el push desde la Mac no está llegando → falla.
- * - Fuera de horario: Maxi se acepta como fallback (se compara contra el
- *   sitio de Maxicambios), sin fallar.
+ * - Business hours (Mon–Sat 08–19 PY): source=chaco is required. Maxi during
+ *   that window means the push from the Mac is not arriving → fail.
+ * - Outside business hours: Maxi is accepted as fallback (compared against
+ *   the Maxicambios site) without failing.
  *
- * No corre en `npm test` / `npm run test:e2e` / el pre-push hook — se invoca
- * a mano con `npm run test:live` (usa playwright.live.config.ts), o vía el
- * workflow .github/workflows/live-rates.yml (cron + workflow_dispatch).
- * BASE_URL por defecto: https://calculadora-pyg.vercel.app (override con
- * la env var LIVE_BASE_URL).
+ * Not part of `npm test` / `npm run test:e2e` / the pre-push hook. Run it with
+ * `npm run test:live` (playwright.live.config.ts) or via
+ * .github/workflows/live-rates.yml (cron + workflow_dispatch).
+ * Default BASE_URL: https://calculadora-pyg.vercel.app (override with
+ * LIVE_BASE_URL).
  *
- * Escribe un resumen en test-results/live-summary.json — el workflow lo usa
- * para armar la tabla de $GITHUB_STEP_SUMMARY y el cuerpo del issue/comentario.
+ * Writes test-results/live-summary.json, which the workflow uses for the
+ * $GITHUB_STEP_SUMMARY table and the issue/comment body.
  */
 
 const MAXI_URL = 'https://www.maxicambios.com.py/share';
