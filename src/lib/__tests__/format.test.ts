@@ -224,3 +224,11 @@ describe('formatHouseUpdatedAt', () => {
     expect(formatHouseUpdatedAt('ayer')).toBeNull();
   });
 });
+
+describe('formatCurrency - non-finite values', () => {
+  it('returns "-" for NaN and Infinity instead of rendering them', () => {
+    expect(formatCurrency(NaN)).toBe('-');
+    expect(formatCurrency(Infinity)).toBe('-');
+    expect(formatCurrency(-Infinity)).toBe('-');
+  });
+});

@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import { brand } from '@/config/brand';
 import { useCalculator } from '@/lib/useCalculator';
 import { formatNumber, formatCurrency, parseNumber, parseDecimal, formatHouseUpdatedAt } from '@/lib/format';
 import { PAYMENT_METHODS_AR, MERCADO_PAGO_METHOD, WALLET_METHODS, calcPaymentMethod, calcReferenceUsdAmount, getCheapestMethodIds } from '@/lib/calculator';
@@ -156,8 +158,8 @@ export default function Page() {
   const customUsdAmount = hasAmount && customPygRateVal > 0 ? pygAmountRaw / customPygRateVal : 0;
   const customPygARS = customUsdAmount > 0 && arsRates.oficial ? customUsdAmount * arsRates.oficial : null;
 
-  // ARQ / DollarApp: tasa efectiva medida con una compra real (calibrable al
-  // pie de la billetera virtual) — la única excepción con tasa propia.
+  // ARQ / DollarApp: reference effective rate (calibrable at the bottom of
+  // the wallet section) — the only method with its own rate.
   const usdAmountArq =
     pygAmountRaw > 0 && effectiveDollarAppRate.rate > 0
       ? pygAmountRaw / effectiveDollarAppRate.rate
@@ -209,9 +211,13 @@ export default function Page() {
 
   return (
     <div className="container">
-      <div className="header">
-        <h1>💱 Calculadora PYG</h1>
-      </div>
+      <header className="header">
+        <div className="header-title-row">
+          <Image src={brand.images.headerLogo} width={28} height={28} alt="" className="header-logo" priority />
+          <h1>{brand.name}</h1>
+        </div>
+        <p className="header-subtitle">{brand.subtitle}</p>
+      </header>
 
       <div className="calculator-body">
         <div className="flag-accent" />
@@ -259,6 +265,13 @@ export default function Page() {
               </span>
             )}
           </div>
+
+          {!referenceVenta && !isHouseRatesLoading && !isRefreshingHouse && (
+            <p className="rate-missing-hint" role="status">
+              No se pudo obtener la tasa de cambio. Tocá 🔄 para reintentar o escribí la venta USD
+              en &quot;Venta USD&quot; más abajo.
+            </p>
+          )}
 
           <div className="result-box">
             <div className="result-box-left">

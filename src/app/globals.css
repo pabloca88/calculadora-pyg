@@ -59,6 +59,27 @@ body {
   line-height: 1.2;
 }
 
+.header-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.header-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  flex-shrink: 0;
+}
+
+.header-subtitle {
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.01em;
+}
+
 .calculator-body {
   background: var(--bg-card);
   border-radius: clamp(16px, 4vw, 20px);
@@ -1277,4 +1298,25 @@ label {
   text-transform: uppercase;
   letter-spacing: 0.03em;
   margin-bottom: 8px;
+}
+
+/* Shown under the U$D box when no reference rate could be loaded. */
+.rate-missing-hint {
+  margin: -2px 0 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fff4f4;
+  color: #9b1c1c;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+/* iOS Safari auto-zooms on focus into inputs under 16px. Pinch-zoom is
+   allowed (accessibility), so on iOS only, form fields use 16px. */
+@supports (-webkit-touch-callout: none) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }

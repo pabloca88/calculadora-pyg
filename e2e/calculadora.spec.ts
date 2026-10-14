@@ -30,10 +30,26 @@ async function waitForEfectivoRateReady(page: Page) {
 // GRUPO 1: CARGA Y ESTADO INICIAL
 // ════════════════════════════════════════════════════════════════════════════
 
-test('T01 - La app carga y muestra el título', async ({ page }) => {
+test('T01 - La app carga con la marca CalPyg (título, logo, subtítulo, manifest)', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveTitle(/Calculadora PYG/i);
-  await expect(page.locator('h1')).toContainText(/Calculadora PYG/i);
+  await expect(page).toHaveTitle('CalPyg');
+  await expect(page.locator('h1')).toHaveText('CalPyg');
+  await expect(page.locator('.header-subtitle')).toHaveText('Guaraníes → Dólares → Pesos');
+
+  const logo = page.locator('.header-logo');
+  await expect(logo).toBeVisible();
+  expect(await logo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+
+  const manifestHref = await page.locator('link[rel="manifest"]').getAttribute('href');
+  expect(manifestHref).toBeTruthy();
+  const manifest = await (await page.request.get(manifestHref!)).json();
+  expect(manifest.name).toBe('CalPyg');
+  expect(manifest.short_name).toBe('CalPyg');
+  for (const icon of manifest.icons) {
+    const res = await page.request.get(icon.src);
+    expect(res.status(), `manifest icon ${icon.src}`).toBe(200);
+    expect(res.headers()['content-type']).toMatch(/^image\//);
+  }
 });
 
 test('T02 - El input de guaraníes está visible y acepta números', async ({ page }) => {

@@ -42,7 +42,8 @@ export const formatDecimal = (value: string): string => {
  * Formatea currency para display (eg: $16,13)
  */
 export const formatCurrency = (num: number | null): string => {
-  if (!num) return '-';
+  // Never render NaN/Infinity: anything non-finite (or 0/null) shows "-".
+  if (!num || !Number.isFinite(num)) return '-';
   const parts = num.toFixed(2).split('.');
   const intPart = parseInt(parts[0]).toLocaleString('es-PY');
   return intPart + ',' + parts[1];
