@@ -1,33 +1,38 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import { brand } from '@/config/brand';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://calculadora-pyg.vercel.app'),
-  title: '💱 Calculadora PYG',
-  description: 'Calculadora PWA de monedas Paraguay (PYG → USD → ARS)',
-  manifest: '/manifest.json',
-  // favicon.ico, icon.png y apple-icon.png en src/app/ se auto-detectan por
-  // convención de App Router — generan sus propios <link rel="icon"> /
-  // <link rel="apple-touch-icon">, así que declararlos acá sería redundante
-  // (o peor: un <link> duplicado apuntando al app-logo.png de 1.6MB sin
-  // redimensionar).
+  metadataBase: new URL(brand.siteUrl),
+  title: brand.name,
+  description: brand.description,
+  applicationName: brand.name,
+  // The manifest (src/app/manifest.ts) and favicon.ico / icon.png /
+  // apple-icon.png in src/app/ are linked automatically by App Router file
+  // conventions, so they are not declared here.
+  appleWebApp: {
+    capable: true,
+    title: brand.name,
+    statusBarStyle: 'black-translucent',
+  },
   openGraph: {
-    title: 'Calculadora PYG',
-    description: 'Calculá cuánto cuesta realmente pagar en guaraníes según el medio de pago',
-    images: [{ url: '/app-logo.png', width: 1254, height: 1254 }],
+    title: brand.name,
+    description: brand.description,
+    siteName: brand.name,
+    images: [{ url: brand.images.og, width: 512, height: 512 }],
   },
   keywords: ['calculator', 'paraguay', 'pyg', 'usd', 'ars', 'currency'],
 };
 
+// Pinch-zoom stays enabled (accessibility); inputs use >= 16px font so iOS
+// does not auto-zoom on focus.
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: '#0038A8',
+  themeColor: brand.themeColor,
   viewportFit: 'cover',
 };
 
@@ -37,13 +42,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Calculadora PYG" />
-      </head>
+    <html lang={brand.locale}>
       <body className={inter.className}>
         {children}
       </body>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-describe('Calculadora PYG - Test Cases Reales', () => {
+describe('CalPyg - real-world test cases', () => {
   const calcUSD = (pyg: number, rate: number) => pyg / rate;
   const calcARS = (usd: number, arsRate: number) => usd * arsRate;
   const calcTarjeta = (usd: number, oficial: number) => usd * oficial * 1.30;
