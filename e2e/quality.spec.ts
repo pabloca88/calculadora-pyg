@@ -72,6 +72,21 @@ test.describe('mobile layout (Chromium)', () => {
   }
 });
 
+test('no-rate hint never flashes while a valid rate is loading (CLS regression)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __hintSeen: boolean }).__hintSeen = false;
+    new MutationObserver(() => {
+      if (document.querySelector('.rate-missing-hint')) {
+        (window as unknown as { __hintSeen: boolean }).__hintSeen = true;
+      }
+    }).observe(document, { childList: true, subtree: true });
+  });
+  await page.route('**/api/pyg-rates', fulfillJson(RATE_OK));
+  await page.goto('/');
+  await expect(page.locator('.result-box').first().locator('.result-box-label')).toHaveText('🟢 en vivo', { timeout: 15000 });
+  expect(await page.evaluate(() => (window as unknown as { __hintSeen: boolean }).__hintSeen)).toBe(false);
+});
+
 test('security headers present and CSP allows both exchange-house iframes', async ({ page }) => {
   const violations: string[] = [];
   page.on('console', (msg) => {

@@ -298,7 +298,7 @@ label {
 
 .ars-status {
   font-size: 0.5625rem;
-  background: #10b981;
+  background: #047857; /* emerald-700: AA contrast with white text */
   color: white;
   padding: 3px 8px;
   border-radius: 6px;
@@ -523,7 +523,7 @@ label {
 
 .result-ars-label {
   font-size: 0.5625rem;
-  color: #9ca3af;
+  color: #6b7280;
   font-weight: 600;
   margin-bottom: 2px;
   text-transform: uppercase;
@@ -561,7 +561,7 @@ label {
 .empty-state-mini {
   text-align: center;
   padding: 20px 12px;
-  color: #9ca3af;
+  color: #6b7280;
   font-size: 0.75rem;
   line-height: 1.5;
 }
@@ -682,7 +682,7 @@ label {
 .result-group-hint {
   font-size: 0.5rem;
   font-weight: 600;
-  color: #9ca3af;
+  color: #6b7280;
   text-transform: none;
   letter-spacing: 0;
 }
@@ -883,7 +883,7 @@ label {
 
 .result-box-label {
   font-size: 0.625rem;
-  color: #9ca3af;
+  color: #6b7280;
   font-weight: 600;
   text-align: right;
   flex-shrink: 0;
@@ -1063,7 +1063,7 @@ label {
 .casa-cambio-help {
   font-family: inherit;
   font-size: 0.625rem;
-  color: #9ca3af;
+  color: #6b7280;
   line-height: 1.4;
 }
 
@@ -1141,7 +1141,7 @@ label {
 
 .payment-card-label {
   font-size: 0.625rem;
-  color: #9ca3af;
+  color: #6b7280;
   margin-top: 2px;
 }
 

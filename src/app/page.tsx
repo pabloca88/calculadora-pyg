@@ -266,7 +266,10 @@ export default function Page() {
             )}
           </div>
 
-          {!referenceVenta && !isHouseRatesLoading && !isRefreshingHouse && (
+          {/* Only when the API itself has no rate: right after the rates load,
+              chacoRateInput is filled by an effect one render later, and
+              keying off it alone made this hint flash (layout shift). */}
+          {!referenceVenta && !pygHouseRates.rate.venta && !isHouseRatesLoading && !isRefreshingHouse && (
             <p className="rate-missing-hint" role="status">
               No se pudo obtener la tasa de cambio. Tocá 🔄 para reintentar o escribí la venta USD
               en &quot;Venta USD&quot; más abajo.
@@ -331,8 +334,9 @@ export default function Page() {
           </div>
 
           <div className="wallet-selector-wrapper">
-            <label>Billetera Virtual</label>
+            <label htmlFor="wallet-select">Billetera Virtual</label>
             <select
+              id="wallet-select"
               className="wallet-select"
               value={selectedWallet}
               onChange={(e) => setSelectedWallet(e.target.value)}
