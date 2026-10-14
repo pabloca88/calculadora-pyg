@@ -1,9 +1,9 @@
 import { isSaneRate } from './pygScraping';
 
 /**
- * Tasa de Cambios Chaco leída desde la Mac de Pablo (IP residencial) y
- * pusheada a POST /api/pyg-rates/push — Cloudflare le da 403 a Vercel y a
- * GitHub Actions, así que el backend no puede leer Chaco directo.
+ * Cambios Chaco rate read from the maintainer's Mac (residential IP) and
+ * pushed to POST /api/pyg-rates/push. Cloudflare returns 403 to Vercel and to
+ * GitHub Actions, so the backend cannot read Chaco directly.
  */
 export interface PushedChacoRate {
   compra: number;
@@ -100,5 +100,25 @@ export const readPushedChaco = async (): Promise<PushedChacoRate | null> => {
   } catch (error) {
     console.error('[chacoPushStore] read failed:', error);
     return null;
+  }
+};
+
+export const PUSH_RATE_LIMIT_PER_MINUTE = 10;
+
+/**
+ * Fixed-window rate limit for the push endpoint (per client key, per minute)
+ * backed by the same Redis. Fails open: if Redis is unavailable the request
+ * is allowed, since the endpoint is already protected by the bearer token.
+ */
+export const isPushRateLimited = async (clientKey: string, now = Date.now()): Promise<boolean> => {
+  if (!isStoreConfigured()) return false;
+  const key = `ratelimit:push:${clientKey}:${Math.floor(now / 60_000)}`;
+  try {
+    const count = Number(await redis(['INCR', key]));
+    if (count === 1) await redis(['EXPIRE', key, 120]);
+    return count > PUSH_RATE_LIMIT_PER_MINUTE;
+  } catch (error) {
+    console.error('[chacoPushStore] rate limit check failed (allowing request):', error);
+    return false;
   }
 };

@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const writePushedChaco = vi.fn();
+const isPushRateLimited = vi.fn();
 vi.mock('@/lib/chacoPushStore', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../chacoPushStore')>();
-  return { ...actual, isStoreConfigured: () => true, writePushedChaco };
+  return { ...actual, isStoreConfigured: () => true, writePushedChaco, isPushRateLimited };
 });
 
 const { POST } = await import('../../app/api/pyg-rates/push/route');
@@ -20,6 +21,7 @@ describe('POST /api/pyg-rates/push', () => {
   beforeEach(() => {
     vi.stubEnv('PUSH_TOKEN', 'secret-token');
     writePushedChaco.mockReset().mockResolvedValue(undefined);
+    isPushRateLimited.mockReset().mockResolvedValue(false);
   });
   afterEach(() => vi.unstubAllEnvs());
 
@@ -48,5 +50,25 @@ describe('POST /api/pyg-rates/push', () => {
   it('503 si PUSH_TOKEN no está configurado', async () => {
     vi.stubEnv('PUSH_TOKEN', '');
     expect((await POST(req(BODY, 'secret-token'))).status).toBe(503);
+  });
+
+  it('413 when the body exceeds 2 KB (declared or actual size), without storing', async () => {
+    const big = { ...BODY, updatedAt: 'x'.repeat(4000) };
+    expect((await POST(req(big, 'secret-token'))).status).toBe(413);
+
+    const lying = new Request('http://localhost/api/pyg-rates/push', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer secret-token', 'Content-Length': '99999' },
+      body: JSON.stringify(BODY),
+    });
+    expect((await POST(lying)).status).toBe(413);
+    expect(writePushedChaco).not.toHaveBeenCalled();
+  });
+
+  it('429 when the client is rate limited, before checking the token', async () => {
+    isPushRateLimited.mockResolvedValue(true);
+    expect((await POST(req(BODY, 'secret-token'))).status).toBe(429);
+    expect((await POST(req(BODY))).status).toBe(429);
+    expect(writePushedChaco).not.toHaveBeenCalled();
   });
 });
