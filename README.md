@@ -34,6 +34,10 @@ Production: https://calpyg.vercel.app (also https://calculadora-pyg.vercel.app) 
 - **Fallback:** if no fresh push exists (Mac asleep/off), the API scrapes
   Maxicambios. Its parser anchors on the `flags/USD.png` icon because CAD and
   AUD rows also say "Dólar".
+- **Native apps:** `GET /api/v1/rates` returns the same rate plus the ARS
+  rates (DolarAPI, fetched server-side) in a frozen, versioned JSON contract
+  (`src/lib/ratesV1.ts`), so installed iOS/watchOS apps don't break when the
+  web changes. Additive changes only; breaking ones go to `/api/v2`.
 - **Monitoring:** `.github/workflows/live-rates.yml` runs `npm run test:live`
   against production. During business hours it requires `source=chaco` with a
   push less than 3 h old; it opens a `live-rates` issue on failure and closes it

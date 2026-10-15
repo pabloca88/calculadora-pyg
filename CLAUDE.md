@@ -38,7 +38,22 @@ docs and commit messages are English.
 4. `source: "none"`.
 
 `GET /api/pyg-rates` reads the store on every request; only scraped HTML is
-cached in memory (30 min).
+cached in memory (30 min). The resolution and the scraping cache live in
+`src/lib/liveRates.ts`, shared with `/api/v1/rates`.
+
+### `GET /api/v1/rates`: frozen contract for the native apps
+- The native CalPyg apps (separate repo, CalPyg-Apple) read only this route.
+  Installed apps can't be updated in lockstep, so the shape in
+  `src/lib/ratesV1.ts` is **frozen**: adding a field is fine; renaming,
+  removing or retyping one needs a new `/api/v2`. The CONTRACT test in
+  `ratesV1.test.ts` guards it — never "fix" it by editing the expected keys.
+- Body: `{ schemaVersion: 1, generatedAt, pyg: { venta, compra, houseUpdatedAt
+  (ISO, Paraguay offset), houseUpdatedAtLabel ("DD/MM HH:MM"), source } | null,
+  ars: { oficial, tarjeta, mep, cripto, updatedAt } | null }`.
+- `pyg` is null when no house answered or the rate fails the sanity checks;
+  `ars` comes from DolarAPI (server-side, 5-min cache of successes; same
+  mapping as `rates.ts`, `bolsa` → `mep`). `source` is diagnostic only.
+- `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`.
 
 ### Calculation
 - **Single reference rate = Chaco VENTA (decided 13/10/2026).** One house, one
@@ -72,6 +87,7 @@ scripts; `frame-src` allows www and bare domains of both houses for the
   requires `source=chaco` and a push < 3 h old; outside them it accepts Maxi.
   Run by `.github/workflows/live-rates.yml`, which opens a `live-rates` issue
   on failure and closes it on recovery.
+  It also checks that `/api/v1/rates` serves the same venta (±50 Gs) and ARS rates.
 - `node --import tsx scripts/push-chaco.ts [--force] [--dry-run]`: manual push.
 - Deploys are done with `npx vercel deploy --prod` (no Git integration).
 

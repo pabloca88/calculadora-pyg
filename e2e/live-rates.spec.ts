@@ -184,3 +184,27 @@ test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, req
   expect(uiVenta, `la UI no muestra ningún valor de venta (label: "${uiLabelText}")`).not.toBeNull();
   expect(uiVsApiDiffGs, `diferencia UI vs API: ${uiVsApiDiffGs} Gs`).toBeLessThanOrEqual(CACHE_TOLERANCE_GS);
 });
+
+// The native apps read /api/v1/rates (frozen contract, src/lib/ratesV1.ts).
+// It must serve the same rate as /api/pyg-rates; its CDN cache (60 s) can lag
+// a fresh push, hence the same tolerance as the UI check.
+test('live v1: /api/v1/rates for the native apps matches /api/pyg-rates', async ({ request, baseURL }) => {
+  const [v1Res, webRes] = await Promise.all([
+    request.get(`${baseURL}/api/v1/rates`),
+    request.get(`${baseURL}/api/pyg-rates`),
+  ]);
+  expect(v1Res.ok(), `/api/v1/rates HTTP ${v1Res.status()}`).toBe(true);
+  const v1 = await v1Res.json();
+  const web = await webRes.json();
+  console.log('[live] v1:', JSON.stringify(v1));
+
+  expect(v1.schemaVersion).toBe(1);
+  expect(v1.pyg, 'v1 devolvió pyg null').not.toBeNull();
+  expect(v1.pyg.venta).toBeGreaterThanOrEqual(4000);
+  expect(v1.pyg.venta).toBeLessThanOrEqual(10000);
+  expect(v1.pyg.venta).toBeGreaterThan(v1.pyg.compra);
+  expect(Math.abs(v1.pyg.venta - (web.rate?.venta ?? Infinity)), 'v1 vs /api/pyg-rates').toBeLessThanOrEqual(CACHE_TOLERANCE_GS);
+  expect(v1.ars, 'v1 devolvió ars null (¿DolarAPI caído?)').not.toBeNull();
+  expect(v1.ars.oficial).toBeGreaterThan(0);
+  expect(v1.ars.tarjeta).toBeGreaterThan(v1.ars.oficial);
+});

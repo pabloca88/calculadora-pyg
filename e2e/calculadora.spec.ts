@@ -182,6 +182,25 @@ test('T10 - La API /api/pyg-rates devuelve una tasa válida (Chaco o, si no resp
   expect(data.rate?.venta).toBeGreaterThan(data.rate?.compra);
 });
 
+test('T10b - La API /api/v1/rates (apps nativas) respeta el contrato y coincide con /api/pyg-rates', async ({ page }) => {
+  const [v1Res, webRes] = await Promise.all([
+    page.request.get('/api/v1/rates'),
+    page.request.get('/api/pyg-rates'),
+  ]);
+  expect(v1Res.status()).toBe(200);
+  const v1 = await v1Res.json();
+  const web = await webRes.json();
+
+  expect(v1.schemaVersion).toBe(1);
+  expect(Object.keys(v1).sort()).toEqual(['ars', 'generatedAt', 'pyg', 'schemaVersion']);
+  expect(v1.pyg, 'v1 pyg null con un dev server local: algo más grave está roto').not.toBeNull();
+  expect(v1.pyg.venta).toBeGreaterThan(v1.pyg.compra);
+  expect(v1.pyg.venta).toBe(web.rate.venta);
+  expect(v1.pyg.houseUpdatedAt ?? '').toMatch(/^$|^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00[+-]\d{2}:\d{2}$/);
+  expect(v1.ars?.oficial).toBeGreaterThan(0);
+  expect(v1.ars?.tarjeta).toBeGreaterThan(v1.ars?.oficial);
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 // GRUPO 4: CARDS DE MÉTODOS DE PAGO
 // ════════════════════════════════════════════════════════════════════════════
