@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { RATE_OK, fulfillJson } from './helpers';
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 async function enterAmount(page: Page, amount: string) {
@@ -474,6 +475,42 @@ test('T22b - Un override manual viejo (key "chaco_rate", significado compra) se 
   await expect(page.locator('.result-box').first().locator('.result-box-value')).toHaveText('96,49', { timeout: 15000 });
   await expect(page.locator('.casa-cambio-input-label')).not.toContainText('manual');
   expect(await page.evaluate(() => localStorage.getItem('chaco_rate'))).toBeNull();
+});
+
+test('T22c - Una venta manual fuera de 4.000–10.000 se rechaza: U$D "-", aviso, y no se guarda', async ({ page }) => {
+  await page.route('**/api/pyg-rates', fulfillJson(RATE_OK));
+  await page.goto('/');
+  await expect(page.locator('.casa-cambio-input-label')).toContainText('5.700', { timeout: 15000 });
+  await enterAmount(page, '550000');
+
+  const rateInput = page.locator('.casa-cambio-input-row input');
+  const usdValue = page.locator('.result-box').first().locator('.result-box-value');
+
+  await rateInput.fill('57');
+  await expect(usdValue).toHaveText('-');
+  await expect(page.locator('.rate-missing-hint[role="alert"]')).toContainText('entre ₲4.000 y ₲10.000');
+  expect(await page.evaluate(() => localStorage.getItem('chaco_rate_venta_v1'))).toBeNull();
+
+  await rateInput.fill('5.700');
+  await expect(usdValue).toHaveText('96,49');
+  await expect(page.locator('.rate-missing-hint[role="alert"]')).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem('chaco_rate_venta_v1'))).toContain('5.700');
+});
+
+test('T22d - Un override guardado fuera de rango (de antes del chequeo) se descarta al cargar', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('seeded')) {
+      localStorage.setItem('chaco_rate_venta_v1', JSON.stringify({ value: '57', savedAt: Date.now() }));
+      sessionStorage.setItem('seeded', '1');
+    }
+  });
+  await page.route('**/api/pyg-rates', fulfillJson(RATE_OK));
+  await page.goto('/');
+  await enterAmount(page, '550000');
+
+  await expect(page.locator('.result-box').first().locator('.result-box-value')).toHaveText('96,49', { timeout: 15000 });
+  await expect(page.locator('.casa-cambio-input-label')).not.toContainText('manual');
+  expect(await page.evaluate(() => localStorage.getItem('chaco_rate_venta_v1'))).toBeNull();
 });
 
 test('T23 - Sin tasa de referencia, el recuadro U$D muestra "-" (no cae a una tasa de mercado)', async ({ page }) => {

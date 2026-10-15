@@ -63,6 +63,9 @@ cached in memory (30 min). The resolution and the scraping cache live in
   validated (venta > compra).
 - Manual override = venta, expires after 12 h (localStorage
   `chaco_rate_venta_v1`; the old `chaco_rate` key, which meant compra, is deleted).
+  It must pass the same 4,000–10,000 range (`src/lib/chacoOverride.ts`): an
+  out-of-range value stays in the field with a hint but is never saved or used
+  (U$D shows "-"), and a stored out-of-range value is discarded on load.
 - **No market rate** (exchangerate-api and similar were removed). No rate → "-",
   plus a visible hint to retry or type the rate manually.
 - Sanity everywhere (parsers and push): compra and venta in **4,000–10,000** and

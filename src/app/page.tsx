@@ -6,53 +6,12 @@ import { brand } from '@/config/brand';
 import { useCalculator } from '@/lib/useCalculator';
 import { formatNumber, formatCurrency, parseNumber, parseDecimal, formatHouseUpdatedAt } from '@/lib/format';
 import { PAYMENT_METHODS_AR, MERCADO_PAGO_METHOD, WALLET_METHODS, calcPaymentMethod, calcReferenceUsdAmount, getCheapestMethodIds } from '@/lib/calculator';
+import { readValidChacoOverride, saveChacoOverride, clearChacoOverride, isValidManualVenta } from '@/lib/chacoOverride';
 
 const WALLETS = [
   { value: 'arq', label: 'ARQ / DollarApp' },
   { value: 'payoneer', label: 'Payoneer' },
 ];
-
-// _venta_v1: desde el 13/10/2026 el override significa VENTA (antes era
-// compra, bajo 'chaco_rate') — key nueva para que un valor de compra viejo
-// no se cuele como venta; la key vieja se borra al leer.
-const CHACO_OVERRIDE_KEY = 'chaco_rate_venta_v1';
-const LEGACY_CHACO_OVERRIDE_KEY = 'chaco_rate';
-const CHACO_OVERRIDE_TTL_MS = 12 * 60 * 60 * 1000;
-
-interface ChacoOverride {
-  value: string;
-  savedAt: number;
-}
-
-/**
- * Lee el override manual de Cambios Chaco si todavía es válido (< 12hs).
- * También descarta el formato viejo (string plano, sin TTL) para que un
- * valor tipeado hace meses no tape la tasa automática para siempre.
- */
-const readValidChacoOverride = (): string | null => {
-  localStorage.removeItem(LEGACY_CHACO_OVERRIDE_KEY);
-  const raw = localStorage.getItem(CHACO_OVERRIDE_KEY);
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (
-      parsed &&
-      typeof parsed === 'object' &&
-      typeof parsed.value === 'string' &&
-      typeof parsed.savedAt === 'number'
-    ) {
-      if (Date.now() - parsed.savedAt < CHACO_OVERRIDE_TTL_MS) {
-        return parsed.value;
-      }
-    }
-  } catch {
-    // formato viejo (string plano) u otro JSON inválido: se descarta abajo
-  }
-
-  localStorage.removeItem(CHACO_OVERRIDE_KEY);
-  return null;
-};
 
 export default function Page() {
   const {
@@ -112,20 +71,21 @@ export default function Page() {
     }
   }, [chacoManualOverride, pygHouseRates.rate.venta]);
 
+  // Out-of-range values (4.000–10.000) are kept in the field so the user can
+  // fix them, but never saved nor used as the reference rate.
   const handleChacoRateChange = (value: string) => {
     const formatted = formatNumber(value);
     setChacoRateInput(formatted);
     setChacoManualOverride(!!formatted);
     if (formatted) {
-      const override: ChacoOverride = { value: formatted, savedAt: Date.now() };
-      localStorage.setItem(CHACO_OVERRIDE_KEY, JSON.stringify(override));
+      saveChacoOverride(formatted);
     } else {
-      localStorage.removeItem(CHACO_OVERRIDE_KEY);
+      clearChacoOverride();
     }
   };
 
   const handleUseAutomaticChacoRate = () => {
-    localStorage.removeItem(CHACO_OVERRIDE_KEY);
+    clearChacoOverride();
     setChacoManualOverride(false);
     setChacoRateInput(pygHouseRates.rate.venta ? pygHouseRates.rate.venta.toLocaleString('es-PY') : '');
   };
@@ -142,7 +102,9 @@ export default function Page() {
   // mercado internacional de respaldo — sin tasa de referencia, no hay USD
   // que mostrar (el recuadro de arriba y todo lo que deriva de él muestran
   // "-" en vez de un número inventado).
-  const referenceVenta = parseNumber(chacoRateInput) || null;
+  // A typed venta outside 4.000–10.000 is rejected (null → "-"), never used.
+  const referenceVenta = isValidManualVenta(chacoRateInput) ? parseNumber(chacoRateInput) : null;
+  const manualVentaOutOfRange = chacoManualOverride && !!chacoRateInput && referenceVenta === null;
 
   // Base para el recuadro U$D principal y todo lo que deriva de él (Dólar
   // Oficial, Tarjeta +30%, tasa personalizada) — y también para Efectivo USD
@@ -251,6 +213,8 @@ export default function Page() {
               <span className="result-box-label">⏳ cargando...</span>
             ) : referenceVenta ? (
               <span className="result-box-label">🟢 en vivo</span>
+            ) : manualVentaOutOfRange ? (
+              <span className="result-box-label">⚠️ revisá la venta</span>
             ) : (
               <span className="result-box-label pyg-refresh-fallback">
                 🔴 sin conexión
@@ -538,6 +502,11 @@ export default function Page() {
                 />
               </div>
             </div>
+            {manualVentaOutOfRange && (
+              <p className="rate-missing-hint" role="alert">
+                La venta tiene que estar entre ₲4.000 y ₲10.000. Revisá el número o usá el automático.
+              </p>
+            )}
             {chacoManualOverride && (
               <div className="casa-cambio-override-row">
                 <span className="casa-cambio-override-label">

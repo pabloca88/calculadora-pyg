@@ -21,11 +21,17 @@ export const RATE_MAX = 10000;
  */
 export const isSaneRate = (compra: number | null, venta: number | null): boolean => {
   if (compra === null || venta === null) return false;
-  if (compra < RATE_MIN || compra > RATE_MAX) return false;
-  if (venta < RATE_MIN || venta > RATE_MAX) return false;
+  if (!isRateInRange(compra) || !isRateInRange(venta)) return false;
   if (venta <= compra) return false;
   return true;
 };
+
+/**
+ * Range check for a single ₲/USD value, e.g. a venta typed by the user (there
+ * is no compra to compare against). Same 4.000–10.000 range as isSaneRate.
+ */
+export const isRateInRange = (value: number | null | undefined): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= RATE_MIN && value <= RATE_MAX;
 
 /**
  * Parsea el widget público de Cambios Chaco (HTML server-rendered, sin JS).

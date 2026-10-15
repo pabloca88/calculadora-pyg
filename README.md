@@ -51,7 +51,7 @@ Production: https://calpyg.vercel.app (also https://calculadora-pyg.vercel.app) 
 | Sanity range 4,000–10,000 Gs for compra and venta, and venta > compra | A regex that drifts onto another currency or row returns plausible-looking numbers; a discarded value (null / HTTP 400) is safer than a wrong one. |
 | No international "market rate" | Shoppers pay the exchange-house rate; a market-rate fallback produced wrong USD amounts. With no rate the UI shows "-" plus a hint to retry or type it manually. |
 | Pushed value is trusted for 3 h | Long enough to cover a missed run or two, short enough that stale data falls back to Maxi. |
-| Manual override (12 h) | The user can type the rate the shop actually offers. |
+| Manual override (12 h), range-checked | The user can type the rate the shop actually offers; outside 4,000–10,000 it is rejected, so a typo never becomes the reference rate. |
 | Branding in `src/config/brand.ts` | The manifest and metadata are generated from it, so a sibling app (CalBra) only changes that file and `public/brand/`. |
 
 ## Security
