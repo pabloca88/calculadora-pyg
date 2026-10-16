@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { brand } from '@/config/brand';
 import { useCalculator } from '@/lib/useCalculator';
-import { formatNumber, formatCurrency, parseNumber, parseDecimal, formatHouseUpdatedAt } from '@/lib/format';
+import { formatNumber, formatCurrency, parseNumber, formatARSRate, parseARSRate, formatHouseUpdatedAt } from '@/lib/format';
 import { PAYMENT_METHODS_AR, MERCADO_PAGO_METHOD, WALLET_METHODS, calcPaymentMethod, calcReferenceUsdAmount, getCheapestMethodIds } from '@/lib/calculator';
 import { readValidChacoOverride, saveChacoOverride, clearChacoOverride, isValidManualVenta } from '@/lib/chacoOverride';
 
@@ -346,14 +346,18 @@ export default function Page() {
                       placeholder="USD debitados en la app"
                       inputMode="decimal"
                       value={calibUsd}
-                      onChange={(e) => setCalibUsd(e.target.value.replace(/[^\d,.]/g, ''))}
+                      // "16.69" and "16,69" both mean 16,69 USD (decimal keypads
+                      // show "." or "," depending on the phone's region); it is
+                      // normalized to "16,69" so parseARSRate can't misread the dot
+                      // as a thousands separator (parseDecimal turned it into 1669).
+                      onChange={(e) => setCalibUsd(formatARSRate(e.target.value))}
                     />
                   </div>
                   <button
                     type="button"
                     className="pyg-refresh-btn"
                     onClick={() => {
-                      calibrateDollarAppRate(parseNumber(calibGs), parseDecimal(calibUsd));
+                      calibrateDollarAppRate(parseNumber(calibGs), parseARSRate(calibUsd));
                       setCalibGs('');
                       setCalibUsd('');
                       setShowCalibForm(false);

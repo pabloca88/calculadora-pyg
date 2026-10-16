@@ -232,3 +232,26 @@ describe('formatCurrency - non-finite values', () => {
     expect(formatCurrency(-Infinity)).toBe('-');
   });
 });
+
+// "Registrar operación real" (DollarApp calibration): the USD field goes
+// through formatARSRate + parseARSRate. parseDecimal alone treats every "."
+// as a thousands separator, so "16.69" (typed on a keypad that shows ".")
+// became 1669 USD and a calibrated rate of ~₲60/USD.
+describe('calibration USD input', () => {
+  const typed = (raw: string) => parseARSRate(formatARSRate(raw));
+
+  it('reads "16.69" and "16,69" as the same 16.69 USD', () => {
+    expect(typed('16.69')).toBe(16.69);
+    expect(typed('16,69')).toBe(16.69);
+  });
+
+  it('keeps thousands with either convention', () => {
+    expect(typed('1.234,56')).toBe(1234.56);
+    expect(typed('1,234.56')).toBe(1234.56);
+    expect(typed('1234')).toBe(1234);
+  });
+
+  it('documents the old bug: parseDecimal alone misreads "16.69"', () => {
+    expect(parseDecimal('16.69')).toBe(1669);
+  });
+});

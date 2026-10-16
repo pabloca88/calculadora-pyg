@@ -513,6 +513,22 @@ test('T22d - Un override guardado fuera de rango (de antes del chequeo) se desca
   expect(await page.evaluate(() => localStorage.getItem('chaco_rate_venta_v1'))).toBeNull();
 });
 
+test('T22e - Calibrar DollarApp con "16.69" USD (punto decimal) da ₲5.991,61/USD, no ₲59,92', async ({ page }) => {
+  await page.route('**/api/pyg-rates', fulfillJson(RATE_OK));
+  await page.goto('/');
+  await expect(page.locator('.casa-cambio-input-label')).toContainText('5.700', { timeout: 15000 });
+
+  const calib = page.locator('.calib-section');
+  await calib.getByRole('button', { name: /Registrar operación real/ }).click();
+  await calib.getByPlaceholder('Monto pagado en Gs').fill('100000');
+  const usd = calib.getByPlaceholder('USD debitados en la app');
+  await usd.fill('16.69');
+  await expect(usd).toHaveValue('16,69');
+  await calib.getByRole('button', { name: 'Guardar tasa' }).click();
+
+  await expect(calib.locator('.conv-expand-label').first()).toContainText('₲5.991,61/USD');
+});
+
 test('T23 - Sin tasa de referencia, el recuadro U$D muestra "-" (no cae a una tasa de mercado)', async ({ page }) => {
   await page.route('**/api/pyg-rates', (route) =>
     route.fulfill({
