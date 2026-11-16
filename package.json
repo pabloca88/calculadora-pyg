@@ -18,6 +18,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:live": "playwright test --config=playwright.live.config.ts",
+    "report:gaps": "node --import tsx scripts/rate-gap-report.ts",
     "precommit": "npm run test && npm run test:e2e"
   },
   "dependencies": {

@@ -29,6 +29,12 @@ docs and commit messages are English.
 - **No proxies or anti-Cloudflare services.** Chaco is only read from the Mac.
 - The push endpoint: bearer token (timing-safe compare), 2 KB body limit (413),
   10 req/min per IP via Redis (429, fails open), same sanity checks (400).
+- **Chaco-vs-Maxi gap, LOG-ONLY (since 16/11/2026):** after a successful push,
+  `after()` compares it with Maxicambios (30-min HTML cache) and stores the
+  venta gap in Redis `pyg:chaco:gaps` (last 2000). It never rejects a push or
+  changes its response. `GET /api/pyg-rates/gaps` (same bearer) returns the last
+  30 days; `npm run report:gaps` summarizes them (median, p95, max, pushes over
+  1/2/3/5%) to choose a real threshold before turning it into a rejection.
 
 ### Resolution order (`resolveRate`, src/lib/pygRatesFallback.ts)
 1. Pushed Chaco with `readAt` < 3 h → `source: "chaco"`, `chacoVia: "push"`.
@@ -90,7 +96,10 @@ scripts; `frame-src` allows www and bare domains of both houses for the
   requires `source=chaco` and a push < 3 h old; outside them it accepts Maxi.
   Run by `.github/workflows/live-rates.yml`, which opens a `live-rates` issue
   on failure and closes it on recovery.
-  It also checks that `/api/v1/rates` serves the same venta (±50 Gs) and ARS rates.
+  It also checks that `/api/v1/rates` serves the same venta (±50 Gs) and ARS rates,
+  and, with `source=chaco`, that the pushed venta is within 5% of Maxicambios
+  (`MAX_CHACO_MAXI_GAP_PCT`, alert only; no failure if Maxi can't be read).
+- `npm run report:gaps`: Chaco-vs-Maxi gap summary from the push log (needs `PUSH_TOKEN`).
 - `node --import tsx scripts/push-chaco.ts [--force] [--dry-run]`: manual push.
 - Deploys are done with `npx vercel deploy --prod` (no Git integration).
 

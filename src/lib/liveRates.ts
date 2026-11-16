@@ -1,4 +1,5 @@
 import { resolveRate, type RateResolution } from './pygRatesFallback';
+import { parseMaxi, type ExchangeHouseRate } from './pygScraping';
 import { readPushedChaco } from './chacoPushStore';
 
 // Shared by GET /api/pyg-rates (web) and GET /api/v1/rates (native apps), so
@@ -57,6 +58,9 @@ export const resolveLiveRate = (): Promise<RateResolution> =>
     fetchChacoHtml: () => cachedFetch(CHACO_URL),
     fetchMaxiHtml: () => cachedFetch(MAXI_URL),
   });
+
+/** Maxicambios through the same 30-min HTML cache (no extra load on Maxi). */
+export const fetchMaxiRate = async (): Promise<ExchangeHouseRate> => parseMaxi(await cachedFetch(MAXI_URL));
 
 // DolarAPI JSON for /api/v1/rates. Only successes are cached (5 min), so an
 // outage doesn't stick; the CDN cache in front of the route limits retries.

@@ -1,4 +1,5 @@
 import { isSaneRate } from './pygScraping';
+import type { RateGapEntry } from './rateGap';
 
 /**
  * Cambios Chaco rate read from the maintainer's Mac (residential IP) and
@@ -100,6 +101,41 @@ export const readPushedChaco = async (): Promise<PushedChacoRate | null> => {
   } catch (error) {
     console.error('[chacoPushStore] read failed:', error);
     return null;
+  }
+};
+
+// Chaco-vs-Maxi gap per push (log-only). ~30 days at 48 pushes/day, plus margin.
+const GAPS_KEY = 'pyg:chaco:gaps';
+const MAX_GAP_ENTRIES = 2000;
+
+/** Appends one gap entry. Never throws: logging must not affect a push. */
+export const appendRateGap = async (entry: RateGapEntry): Promise<void> => {
+  if (!isStoreConfigured()) return;
+  try {
+    await redis(['LPUSH', GAPS_KEY, JSON.stringify(entry)]);
+    await redis(['LTRIM', GAPS_KEY, 0, MAX_GAP_ENTRIES - 1]);
+  } catch (error) {
+    console.error('[chacoPushStore] gap append failed:', error);
+  }
+};
+
+/** All stored gap entries, newest first; [] if the store is unavailable. */
+export const readRateGaps = async (): Promise<RateGapEntry[]> => {
+  if (!isStoreConfigured()) return [];
+  try {
+    const raw = await redis(['LRANGE', GAPS_KEY, 0, -1]);
+    if (!Array.isArray(raw)) return [];
+    return raw.flatMap((item) => {
+      try {
+        const entry = JSON.parse(String(item)) as RateGapEntry;
+        return typeof entry.gapPct === 'number' && typeof entry.at === 'string' ? [entry] : [];
+      } catch {
+        return [];
+      }
+    });
+  } catch (error) {
+    console.error('[chacoPushStore] gap read failed:', error);
+    return [];
   }
 };
 
