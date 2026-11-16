@@ -119,7 +119,7 @@ async function main() {
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`push HTTP ${res.status}: ${text}`);
-  log('INFO', `push OK (HTTP ${res.status}) → ${pushUrl}`);
+  log('INFO', `push OK (HTTP ${res.status}) → ${pushUrl} ${text}`);
 }
 
 main().catch((error) => {
