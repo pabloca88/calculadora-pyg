@@ -6,7 +6,7 @@ import {
   loadCalculatorData,
   saveCalculatorData,
   loadARSCache,
-  loadEffectiveDollarAppRate,
+  loadDollarAppCalibration,
   saveEffectiveDollarAppRate,
 } from './storage';
 import {
@@ -45,9 +45,8 @@ export const useCalculator = () => {
   const [isArsLoading, setIsArsLoading] = useState(true);
   const [pygHouseRates, setPygHouseRates] = useState<PygExchangeHouseRates>(DEFAULT_HOUSE_RATES);
   const [isHouseRatesLoading, setIsHouseRatesLoading] = useState(true);
-  const [effectiveDollarAppRate, setEffectiveDollarAppRate] = useState<EffectiveRate>(
-    { rate: 5991.05, measuredAt: '2026-07-28' }
-  );
+  // null until the user calibrates DollarApp with a real purchase.
+  const [dollarAppCalibration, setDollarAppCalibration] = useState<EffectiveRate | null>(null);
   const [showOptionalArs, setShowOptionalArs] = useState(false);
   const [showCustomFee, setShowCustomFee] = useState(false);
   const [expansions, setExpansions] = useState<Record<string, boolean>>({ chaco: false });
@@ -74,7 +73,7 @@ export const useCalculator = () => {
     if (saved.selectedWallet) setSelectedWallet(saved.selectedWallet);
     if (saved.selectedExchange) setSelectedExchange(saved.selectedExchange);
 
-    setEffectiveDollarAppRate(loadEffectiveDollarAppRate());
+    setDollarAppCalibration(loadDollarAppCalibration());
   }, []);
 
   const fetchHouseRates = useCallback(async (force = false) => {
@@ -84,14 +83,17 @@ export const useCalculator = () => {
     setIsHouseRatesLoading(false);
   }, []);
 
-  const calibrateDollarAppRate = useCallback((pygPaid: number, usdDebited: number) => {
+  /** Saves a real purchase as the DollarApp calibration, with the reference
+   *  venta of that moment so later estimates can follow the market. */
+  const calibrateDollarAppRate = useCallback((pygPaid: number, usdDebited: number, ventaNow: number | null) => {
     if (!pygPaid || !usdDebited || pygPaid <= 0 || usdDebited <= 0) return;
     const rate: EffectiveRate = {
       rate: pygPaid / usdDebited,
       measuredAt: new Date().toISOString().slice(0, 10),
     };
+    if (ventaNow && ventaNow > 0) rate.ventaAtCalibration = ventaNow;
     saveEffectiveDollarAppRate(rate);
-    setEffectiveDollarAppRate(rate);
+    setDollarAppCalibration(rate);
   }, []);
 
   const fetchRates = useCallback(async () => {
@@ -180,7 +182,7 @@ export const useCalculator = () => {
     pygHouseRates,
     isHouseRatesLoading,
     fetchHouseRates,
-    effectiveDollarAppRate,
+    dollarAppCalibration,
     calibrateDollarAppRate,
     showOptionalArs,
     setShowOptionalArs,

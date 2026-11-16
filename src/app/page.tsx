@@ -5,7 +5,18 @@ import Image from 'next/image';
 import { brand } from '@/config/brand';
 import { useCalculator } from '@/lib/useCalculator';
 import { formatNumber, formatCurrency, parseNumber, formatARSRate, parseARSRate, formatHouseUpdatedAt } from '@/lib/format';
-import { PAYMENT_METHODS_AR, MERCADO_PAGO_METHOD, WALLET_METHODS, calcPaymentMethod, calcReferenceUsdAmount, getCheapestMethodIds } from '@/lib/calculator';
+import {
+  PAYMENT_METHODS_AR,
+  MERCADO_PAGO_METHOD,
+  WALLET_METHODS,
+  DOLLARAPP_CALIBRATE_HINT,
+  calcPaymentMethod,
+  calcReferenceUsdAmount,
+  comparableMethods,
+  dollarAppRateLabel,
+  estimateDollarAppRate,
+  getCheapestMethodIds,
+} from '@/lib/calculator';
 import { readValidChacoOverride, saveChacoOverride, clearChacoOverride, isValidManualVenta } from '@/lib/chacoOverride';
 
 const WALLETS = [
@@ -26,7 +37,7 @@ export default function Page() {
     pygHouseRates,
     isHouseRatesLoading,
     fetchHouseRates,
-    effectiveDollarAppRate,
+    dollarAppCalibration,
     calibrateDollarAppRate,
     showOptionalArs,
     setShowOptionalArs,
@@ -120,15 +131,17 @@ export default function Page() {
   const customUsdAmount = hasAmount && customPygRateVal > 0 ? pygAmountRaw / customPygRateVal : 0;
   const customPygARS = customUsdAmount > 0 && arsRates.oficial ? customUsdAmount * arsRates.oficial : null;
 
-  // ARQ / DollarApp: reference effective rate (calibrable at the bottom of
-  // the wallet section) — the only method with its own rate.
+  // ARQ / DollarApp: the only method with its own rate. Without a user
+  // calibration the shipped reference value is shown but never competes for
+  // "cheapest"; a calibration follows the market (see estimateDollarAppRate).
+  const dollarApp = estimateDollarAppRate(dollarAppCalibration, referenceVenta);
   const usdAmountArq =
-    pygAmountRaw > 0 && effectiveDollarAppRate.rate > 0
-      ? pygAmountRaw / effectiveDollarAppRate.rate
-      : 0;
-  const dollarAppDaysOld = Math.floor(
-    (Date.now() - new Date(effectiveDollarAppRate.measuredAt).getTime()) / 86_400_000
-  );
+    pygAmountRaw > 0 && dollarApp.rate > 0 ? pygAmountRaw / dollarApp.rate : 0;
+
+  const openDollarAppCalibration = () => {
+    setShowCalibForm(true);
+    document.getElementById('dollarapp-calibration')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   const getUsdAmountForMethod = (methodId: string): number => {
     if (methodId === 'arq-dolarapp') return usdAmountArq;
@@ -144,7 +157,7 @@ export default function Page() {
   const walletMethod = WALLET_METHODS[selectedWallet === 'payoneer' ? 'payoneer' : 'arq'];
   const paymentCards = [tarjetaBancoMethod, MERCADO_PAGO_METHOD, walletMethod, efectivoUsdMethod];
   const cheapestIds = hasAmount && arsRatesForPayment
-    ? getCheapestMethodIds(getUsdAmountForMethod, arsRatesForPayment, paymentCards)
+    ? getCheapestMethodIds(getUsdAmountForMethod, arsRatesForPayment, comparableMethods(paymentCards, dollarApp))
     : [];
 
   // Fecha/hora de la cotización según la propia casa (no la hora del fetch);
@@ -312,12 +325,11 @@ export default function Page() {
           </div>
 
           {selectedWallet === 'arq' && (
-            <div className="calib-section">
-              <div className="conv-expand-label">
-                Tasa DollarApp: ₲{effectiveDollarAppRate.rate.toLocaleString('es-PY', { maximumFractionDigits: 2 })}/USD
-                {' '}(medida {effectiveDollarAppRate.measuredAt})
-                {dollarAppDaysOld > 7 && ' 🟡 puede estar desactualizada'}
-              </div>
+            <div className="calib-section" id="dollarapp-calibration">
+              <div className="conv-expand-label">Tasa DollarApp: {dollarAppRateLabel(dollarApp)}</div>
+              {!dollarApp.competes && (
+                <div className="conv-expand-label dollarapp-hint">{DOLLARAPP_CALIBRATE_HINT}</div>
+              )}
               <button
                 type="button"
                 className="pyg-auto-custom-toggle"
@@ -357,7 +369,7 @@ export default function Page() {
                     type="button"
                     className="pyg-refresh-btn"
                     onClick={() => {
-                      calibrateDollarAppRate(parseNumber(calibGs), parseARSRate(calibUsd));
+                      calibrateDollarAppRate(parseNumber(calibGs), parseARSRate(calibUsd), referenceVenta);
                       setCalibGs('');
                       setCalibUsd('');
                       setShowCalibForm(false);
@@ -439,7 +451,7 @@ export default function Page() {
                     ? `Venta ₲${referenceVenta.toLocaleString('es-PY')}${chacoManualOverride ? ' (manual)' : ''}`
                     : 'Falta tasa de cambio ⚠️'
                   : method.id === 'arq-dolarapp'
-                    ? `₲${effectiveDollarAppRate.rate.toLocaleString('es-PY', { maximumFractionDigits: 2 })}/USD (medida ${effectiveDollarAppRate.measuredAt.slice(5).split('-').reverse().join('/')})${dollarAppDaysOld > 7 ? ' 🟡' : ''}`
+                    ? dollarAppRateLabel(dollarApp)
                     : method.rateType === 'tarjeta' ? 'Dólar Tarjeta +30%' :
                       method.fee > 0 ? `Tasa Mastercard +${method.fee}%` : 'Tasa interbancaria';
 
@@ -469,6 +481,15 @@ export default function Page() {
                     </div>
                     <span className="conv-card-chevron">{expansions[method.id] ? '▲' : '▼'}</span>
                   </button>
+                  {method.id === 'arq-dolarapp' && !dollarApp.competes && (
+                    <button
+                      type="button"
+                      className="pyg-auto-custom-toggle dollarapp-hint-button"
+                      onClick={openDollarAppCalibration}
+                    >
+                      📊 {DOLLARAPP_CALIBRATE_HINT}
+                    </button>
+                  )}
                   {expansions[method.id] && (
                     <div className="payment-expand">
                       <div className="payment-expand-note">ℹ️ {method.note}</div>

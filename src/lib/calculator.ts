@@ -1,5 +1,6 @@
-import type { Conversion, ARSRates, PaymentMethod } from './types';
+import type { Conversion, ARSRates, PaymentMethod, EffectiveRate } from './types';
 import { parseNumber, parseDecimal } from './format';
+import { isRateInRange } from './pygScraping';
 
 /**
  * Calcula conversiones PYG → USD → ARS
@@ -195,4 +196,78 @@ export function getCheapestMethodIds(
   return comparisons
     .filter(c => Math.abs(c.arsValue - minValue) < 1)
     .map(c => c.id);
+}
+
+// ─── DollarApp effective rate (decided 16/11/2026) ───────────────────────
+// DollarApp doesn't publish its rate; the user calibrates it with a real
+// purchase (₲ paid / USD debited). Its rate moves with the market, so:
+//   - no calibration → the shipped reference value is shown but never
+//     competes for "cheapest";
+//   - calibration with the venta of that day → today's estimate is
+//     rate × todayVenta / ventaAtCalibration (keeps competing; after 30
+//     days it also asks to recalibrate);
+//   - legacy calibration (no venta) → unadjusted rate; competes only while
+//     it is at most 30 days old.
+
+/** Reference DollarApp rate measured 28/07/2026; shown, never compared. */
+export const DOLLARAPP_REFERENCE: EffectiveRate = { rate: 5991.05, measuredAt: '2026-07-28' };
+export const DOLLARAPP_RECALIBRATE_AFTER_DAYS = 30;
+export const DOLLARAPP_CALIBRATE_HINT = 'Calibrá DollarApp con tu última compra para compararlo';
+
+export type DollarAppEstimateKind = 'reference' | 'adjusted' | 'unadjusted';
+
+export interface DollarAppEstimate {
+  /** ₲ per USD used for the ARQ / DollarApp card today. */
+  rate: number;
+  /** Whether it takes part in the "cheapest" comparison. */
+  competes: boolean;
+  kind: DollarAppEstimateKind;
+  measuredAt: string;
+  needsRecalibration: boolean;
+}
+
+/** Whole days since 'YYYY-MM-DD' (UTC midnight, like `new Date('YYYY-MM-DD')`). */
+const daysSince = (isoDate: string, now: number): number =>
+  Math.floor((now - Date.parse(`${isoDate}T00:00:00Z`)) / 86_400_000);
+
+export function estimateDollarAppRate(
+  calibration: EffectiveRate | null,
+  todayVenta: number | null,
+  now = Date.now()
+): DollarAppEstimate {
+  if (!calibration) {
+    return { rate: DOLLARAPP_REFERENCE.rate, competes: false, kind: 'reference', measuredAt: DOLLARAPP_REFERENCE.measuredAt, needsRecalibration: true };
+  }
+  const old = daysSince(calibration.measuredAt, now) > DOLLARAPP_RECALIBRATE_AFTER_DAYS;
+  const ventaThen = calibration.ventaAtCalibration;
+  if (isRateInRange(ventaThen) && todayVenta && todayVenta > 0) {
+    return {
+      rate: (calibration.rate * todayVenta) / ventaThen,
+      competes: true,
+      kind: 'adjusted',
+      measuredAt: calibration.measuredAt,
+      needsRecalibration: old,
+    };
+  }
+  return { rate: calibration.rate, competes: !old, kind: 'unadjusted', measuredAt: calibration.measuredAt, needsRecalibration: old };
+}
+
+/** The methods that take part in "cheapest": ARQ/DollarApp only when it competes. */
+export const comparableMethods = (methods: PaymentMethod[], estimate: DollarAppEstimate): PaymentMethod[] =>
+  methods.filter((m) => m.id !== 'arq-dolarapp' || estimate.competes);
+
+/** "DD/MM" from 'YYYY-MM-DD'. */
+const dayMonth = (isoDate: string): string => isoDate.slice(5).split('-').reverse().join('/');
+
+/** Label for the DollarApp rate, e.g. "₲6.495,56/USD · estimado desde tu calibración del 16/11". */
+export function dollarAppRateLabel(estimate: DollarAppEstimate): string {
+  const rate = `₲${estimate.rate.toLocaleString('es-PY', { maximumFractionDigits: 2 })}/USD`;
+  const detail =
+    estimate.kind === 'reference'
+      ? 'valor de referencia'
+      : estimate.kind === 'adjusted'
+        ? `estimado desde tu calibración del ${dayMonth(estimate.measuredAt)}`
+        : `medida ${dayMonth(estimate.measuredAt)}`;
+  const recalibrate = estimate.kind !== 'reference' && estimate.needsRecalibration ? ' · recalibrá' : '';
+  return `${rate} · ${detail}${recalibrate}`;
 }

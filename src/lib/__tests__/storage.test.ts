@@ -5,7 +5,7 @@ import {
   saveARSCache,
   loadARSCache,
   saveEffectiveDollarAppRate,
-  loadEffectiveDollarAppRate,
+  loadDollarAppCalibration,
   clearStorage,
 } from '../storage';
 import type { ARSRates } from '../types';
@@ -65,18 +65,26 @@ describe('saveARSCache / loadARSCache', () => {
   });
 });
 
-describe('saveEffectiveDollarAppRate / loadEffectiveDollarAppRate', () => {
-  it('returns the calibration default when nothing was measured yet', () => {
-    const rate = loadEffectiveDollarAppRate();
-    expect(rate.rate).toBeCloseTo(5991.05, 2);
-    expect(rate.measuredAt).toBe('2026-07-28');
+describe('saveEffectiveDollarAppRate / loadDollarAppCalibration', () => {
+  it('returns null when nothing was measured yet (the reference value never counts as a calibration)', () => {
+    expect(loadDollarAppCalibration()).toBeNull();
   });
 
-  it('round-trips a user calibration', () => {
-    saveEffectiveDollarAppRate({ rate: 6020.5, measuredAt: '2026-10-01' });
-    const loaded = loadEffectiveDollarAppRate();
-    expect(loaded.rate).toBe(6020.5);
-    expect(loaded.measuredAt).toBe('2026-10-01');
+  it('round-trips a calibration with the venta of that day', () => {
+    saveEffectiveDollarAppRate({ rate: 6020.5, measuredAt: '2026-11-10', ventaAtCalibration: 6200 });
+    expect(loadDollarAppCalibration()).toEqual({ rate: 6020.5, measuredAt: '2026-11-10', ventaAtCalibration: 6200 });
+  });
+
+  it('loads a calibration saved before 16/11/2026 (no venta) as legacy', () => {
+    localStorage.setItem('pyg_calc_effective_dollarapp', JSON.stringify({ rate: 6020.5, measuredAt: '2026-10-01' }));
+    expect(loadDollarAppCalibration()).toEqual({ rate: 6020.5, measuredAt: '2026-10-01' });
+  });
+
+  it('ignores malformed data', () => {
+    localStorage.setItem('pyg_calc_effective_dollarapp', '{"rate":"x"}');
+    expect(loadDollarAppCalibration()).toBeNull();
+    localStorage.setItem('pyg_calc_effective_dollarapp', 'not json');
+    expect(loadDollarAppCalibration()).toBeNull();
   });
 });
 
@@ -90,6 +98,6 @@ describe('clearStorage', () => {
 
     expect(loadCalculatorData()).toBeNull();
     expect(loadARSCache()).toBeNull();
-    expect(loadEffectiveDollarAppRate().measuredAt).toBe('2026-07-28');
+    expect(loadDollarAppCalibration()).toBeNull();
   });
 });

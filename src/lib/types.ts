@@ -45,6 +45,9 @@ export interface ExchangeHouseRate {
 export interface EffectiveRate {
   rate: number;
   measuredAt: string; // ISO date 'YYYY-MM-DD'
+  /** Reference venta when the calibration was made; missing on calibrations
+   *  saved before 16/11/2026 (treated as unadjusted). */
+  ventaAtCalibration?: number;
 }
 
 // Tipo para respuesta de DolarAPI

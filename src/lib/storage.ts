@@ -4,13 +4,6 @@ const STORAGE_KEY = 'pyg_calc_v7';
 const STORAGE_KEY_ARS = 'pyg_calc_v7_ars';
 const STORAGE_KEY_EFFECTIVE_DOLLARAPP = 'pyg_calc_effective_dollarapp';
 
-// Reference effective DollarApp rate (calibrable). Used until the user
-// calibrates a more recent value of their own.
-const DEFAULT_EFFECTIVE_DOLLARAPP: EffectiveRate = {
-  rate: 5991.05,
-  measuredAt: '2026-07-28',
-};
-
 /**
  * Guarda datos de la calculadora en localStorage
  */
@@ -89,16 +82,25 @@ export const saveEffectiveDollarAppRate = (rate: EffectiveRate): void => {
 };
 
 /**
- * Carga la tasa efectiva de DollarApp, o el valor de calibración por defecto
- * si el usuario todavía no registró una medición propia
+ * The user's own DollarApp calibration, or null if they never measured one
+ * (the shipped reference value is then shown but never compared, see
+ * estimateDollarAppRate). Calibrations saved before 16/11/2026 have no
+ * ventaAtCalibration and load as legacy (unadjusted).
  */
-export const loadEffectiveDollarAppRate = (): EffectiveRate => {
+export const loadDollarAppCalibration = (): EffectiveRate | null => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_EFFECTIVE_DOLLARAPP);
-    return saved ? JSON.parse(saved) : DEFAULT_EFFECTIVE_DOLLARAPP;
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    if (!parsed || typeof parsed.rate !== 'number' || !(parsed.rate > 0) || typeof parsed.measuredAt !== 'string') {
+      return null;
+    }
+    const calibration: EffectiveRate = { rate: parsed.rate, measuredAt: parsed.measuredAt };
+    if (typeof parsed.ventaAtCalibration === 'number') calibration.ventaAtCalibration = parsed.ventaAtCalibration;
+    return calibration;
   } catch (e) {
-    console.error('Error loading effective DollarApp rate:', e);
-    return DEFAULT_EFFECTIVE_DOLLARAPP;
+    console.error('Error loading DollarApp calibration:', e);
+    return null;
   }
 };
 

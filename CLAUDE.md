@@ -72,6 +72,16 @@ cached in memory (30 min). The resolution and the scraping cache live in
   It must pass the same 4,000–10,000 range (`src/lib/chacoOverride.ts`): an
   out-of-range value stays in the field with a hint but is never saved or used
   (U$D shows "-"), and a stored out-of-range value is discarded on load.
+- **DollarApp estimate (decided 16/11/2026, same rule in the native app):**
+  `estimateDollarAppRate` in `src/lib/calculator.ts`. The shipped reference
+  (5.991,05 from 28/07/2026) is shown but never competes for "cheapest"
+  (label "valor de referencia" + hint to calibrate). A calibration stores
+  `ventaAtCalibration` (the reference venta in use, override included) and
+  follows the market: rate × todayVenta / ventaAtCalibration, competes,
+  "estimado desde tu calibración del DD/MM", "· recalibrá" after 30 days.
+  A legacy calibration (no or out-of-range `ventaAtCalibration`) competes
+  unadjusted ("medida DD/MM") only up to 30 days old; older, it is shown
+  with "· recalibrá" + the hint and doesn't compete.
 - **No market rate** (exchangerate-api and similar were removed). No rate → "-",
   plus a visible hint to retry or type the rate manually.
 - Sanity everywhere (parsers and push): compra and venta in **4,000–10,000** and

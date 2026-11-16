@@ -529,6 +529,38 @@ test('T22e - Calibrar DollarApp con "16.69" USD (punto decimal) da ₲5.991,61/U
   await expect(calib.locator('.conv-expand-label').first()).toContainText('₲5.991,61/USD');
 });
 
+test('T25 - DollarApp sin calibrar no compite por "Más barato"; calibrado, compite con la tasa estimada', async ({ page }) => {
+  await page.route('**/api/pyg-rates', fulfillJson(RATE_OK));
+  await page.route('https://dolarapi.com/**', fulfillJson([
+    { casa: 'oficial', compra: 1525, venta: 1575 },
+    { casa: 'tarjeta', compra: 1982.5, venta: 2047.5 },
+  ]));
+  await page.goto('/');
+  await expect(page.locator('.casa-cambio-input-label')).toContainText('5.700', { timeout: 15000 });
+  await enterAmount(page, '550000');
+
+  const arqCard = page.locator('.payment-card').filter({ hasText: 'DollarApp' });
+  const efectivoCard = page.locator('.payment-card').filter({ hasText: 'Efectivo' });
+  // Default 5.991,05 would beat Efectivo at venta 5.700, but it's only a reference value.
+  await expect(efectivoCard.locator('.cheapest-badge')).toBeVisible({ timeout: 15000 });
+  await expect(arqCard.locator('.cheapest-badge')).toHaveCount(0);
+  await expect(arqCard.locator('.payment-card-label')).toContainText('valor de referencia');
+  await expect(arqCard.locator('.dollarapp-hint-button')).toBeVisible();
+
+  await arqCard.locator('.dollarapp-hint-button').click();
+  const calib = page.locator('.calib-section');
+  await calib.getByPlaceholder('Monto pagado en Gs').fill('100000');
+  await calib.getByPlaceholder('USD debitados en la app').fill('16.69');
+  await calib.getByRole('button', { name: 'Guardar tasa' }).click();
+
+  // Calibrated at today's venta → estimate = measured rate, and it competes.
+  await expect(arqCard.locator('.payment-card-label')).toContainText('₲5.991,61/USD · estimado desde tu calibración del');
+  await expect(arqCard.locator('.cheapest-badge')).toBeVisible();
+  await expect(arqCard.locator('.dollarapp-hint-button')).toHaveCount(0);
+  const stored = JSON.parse((await page.evaluate(() => localStorage.getItem('pyg_calc_effective_dollarapp'))) ?? '{}');
+  expect(stored.ventaAtCalibration).toBe(5700);
+});
+
 test('T23 - Sin tasa de referencia, el recuadro U$D muestra "-" (no cae a una tasa de mercado)', async ({ page }) => {
   await page.route('**/api/pyg-rates', (route) =>
     route.fulfill({
