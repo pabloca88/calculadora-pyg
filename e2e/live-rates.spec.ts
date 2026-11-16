@@ -128,7 +128,7 @@ test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, req
     uiLabelText = (await label.textContent().catch(() => '')) ?? '';
   }
 
-  const siteVsApiDiffGs = siteResult.venta != null && apiVenta != null
+  const siteVsApiDiffGs = source === 'maxi' && siteResult.venta != null && apiVenta != null
     ? Math.abs(siteResult.venta - apiVenta)
     : null;
   const uiVsApiDiffGs = uiVenta != null && apiVenta != null
@@ -145,7 +145,10 @@ test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, req
     readAgeMin,
     houseUpdatedAt,
     chacoError,
-    siteVenta: siteResult.venta,
+    // source=maxi: Maxicambios' own site, checked against the API (Gs).
+    // source=chaco: Maxicambios as the independent cross-check (%).
+    siteVenta: source === 'maxi' ? siteResult.venta : null,
+    maxiVenta: source === 'chaco' ? siteResult.venta : null,
     chacoVsMaxiPct,
     maxChacoMaxiGapPct: MAX_CHACO_MAXI_GAP_PCT,
     apiCompra,

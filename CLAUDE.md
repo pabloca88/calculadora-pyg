@@ -111,7 +111,9 @@ scripts; `frame-src` allows www and bare domains of both houses for the
   (`MAX_CHACO_MAXI_GAP_PCT`, alert only; no failure if Maxi can't be read).
 - `npm run report:gaps`: Chaco-vs-Maxi gap summary from the push log (needs `PUSH_TOKEN`).
 - `node --import tsx scripts/push-chaco.ts [--force] [--dry-run]`: manual push.
-- Deploys are done with `npx vercel deploy --prod` (no Git integration).
+- Deploys: `vercel deploy --prod` with the **global** `vercel` CLI (logged in
+  as the project owner; no Git integration). `npx vercel` resolves to a newer
+  CLI that is logged out, so don't use it.
 
 ## Secrets
 - `PUSH_TOKEN`: in Vercel (production) and in `.env.local` (gitignored). The
