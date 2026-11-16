@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isCloudflareChallenge } from '../src/lib/cloudflareChallenge';
 import { isPyBusinessHours } from '../src/lib/businessHours';
+import { MAX_CHACO_MAXI_GAP_PCT, ventaGapPct } from '../src/lib/rateGap';
 
 /**
  * LIVE test against real production: no fixtures or mocks, so it DOES catch a
@@ -18,6 +19,9 @@ import { isPyBusinessHours } from '../src/lib/businessHours';
  *   that window means the push from the Mac is not arriving → fail.
  * - Outside business hours: Maxi is accepted as fallback (compared against
  *   the Maxicambios site) without failing.
+ * - Cross-check: with source=chaco the pushed venta is compared with the
+ *   Maxicambios site; a gap above MAX_CHACO_MAXI_GAP_PCT fails (alert only —
+ *   nothing is blocked). If Maxi can't be read, it doesn't fail.
  *
  * Not part of `npm test` / `npm run test:e2e` / the pre-push hook. Run it with
  * `npm run test:live` (playwright.live.config.ts) or via
@@ -92,12 +96,16 @@ test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, req
 
   console.log(`[live] API ${baseURL}/api/pyg-rates: source=${source} via=${chacoVia ?? '-'} venta=${apiVenta} readAt=${readAt ?? '-'} chacoError=${chacoError ?? '-'} businessHours=${businessHours}`);
 
-  // source=chaco: NO se re-lee Chaco (Cloudflare bloquea al runner) — se
-  // valida el valor de la API. source=maxi: se compara contra Maxicambios.
+  // source=chaco: NO se re-lee Chaco (Cloudflare bloquea al runner); se
+  // compara contra Maxicambios como segunda fuente independiente.
+  // source=maxi: se compara contra el propio sitio de Maxicambios.
   let siteResult: SiteReadResult = { venta: null, blocked: false };
-  if (source === 'maxi') {
+  if (source === 'maxi' || source === 'chaco') {
     siteResult = await readMaxiVenta(page);
   }
+  const chacoVsMaxiPct = source === 'chaco' && apiVenta != null && siteResult.venta != null
+    ? Math.round(ventaGapPct(apiVenta, siteResult.venta) * 100) / 100
+    : null;
 
   // Leer la UI en producción
   await page.goto('/');
@@ -138,6 +146,8 @@ test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, req
     houseUpdatedAt,
     chacoError,
     siteVenta: siteResult.venta,
+    chacoVsMaxiPct,
+    maxChacoMaxiGapPct: MAX_CHACO_MAXI_GAP_PCT,
     apiCompra,
     apiVenta,
     uiVenta,
@@ -178,6 +188,15 @@ test('live rates: API vs sitio de la fuente reportada vs UI', async ({ page, req
   if (source === 'maxi') {
     expect(siteResult.venta, 'no se pudo leer la venta de Maxicambios para comparar contra la API').not.toBeNull();
     expect(siteVsApiDiffGs, `diferencia Maxicambios vs API: ${siteVsApiDiffGs} Gs`).toBeLessThanOrEqual(CACHE_TOLERANCE_GS);
+  }
+
+  // Chaco (push) vs Maxicambios: a large gap means a bad push or a parser
+  // reading the wrong row. Only when Maxi could actually be read.
+  if (chacoVsMaxiPct != null) {
+    expect(
+      chacoVsMaxiPct,
+      `Chaco (push) difiere ${chacoVsMaxiPct}% de Maxicambios (API ${apiVenta} vs Maxi ${siteResult.venta}, máx ${MAX_CHACO_MAXI_GAP_PCT}%)`
+    ).toBeLessThanOrEqual(MAX_CHACO_MAXI_GAP_PCT);
   }
 
   expect(uiLabelText, 'el label de Efectivo USD debe decir "Venta"').toMatch(/^Venta ₲/);
